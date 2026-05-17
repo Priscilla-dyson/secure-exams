@@ -26,16 +26,7 @@ interface Exam {
   score?: number;
 }
 
-const exams: Exam[] = [
-  { id: "os-mid", module: "Operating Systems", title: "Mid Semester Examination", type: "Mid Semester", date: "Jan 15, 2025", time: "9:00 AM", duration: "2h 30m", status: "active", totalMarks: 100, timeRemaining: "2h 14m left" },
-  { id: "aa-mid", module: "Advanced Algorithms", title: "Mid Semester Examination", type: "Mid Semester", date: "Jan 18, 2025", time: "2:00 PM", duration: "2h", status: "upcoming", totalMarks: 100 },
-  { id: "db-end", module: "Database Management", title: "End Semester Examination", type: "End Semester", date: "Jan 22, 2025", time: "10:00 AM", duration: "3h", status: "upcoming", totalMarks: 100 },
-  { id: "cn-quiz", module: "Computer Networks", title: "Quiz 2", type: "Quiz", date: "Jan 15, 2025", time: "9:00 AM", duration: "45m", status: "upcoming", totalMarks: 20 },
-  { id: "se-mid", module: "Software Engineering", title: "Mid Semester Examination", type: "Mid Semester", date: "Jan 8, 2025", time: "10:00 AM", duration: "2h", status: "completed", totalMarks: 100, score: 85 },
-  { id: "dm-end", module: "Discrete Math", title: "End Semester Examination", type: "End Semester", date: "Dec 15, 2024", time: "2:00 PM", duration: "2h", status: "completed", totalMarks: 100, score: 92 },
-  { id: "ds-mid", module: "Data Structures", title: "Mid Semester Examination", type: "Mid Semester", date: "Dec 28, 2024", time: "11:00 AM", duration: "2h", status: "completed", totalMarks: 100, score: 78 },
-  { id: "la-mid", module: "Linear Algebra", title: "Mid Semester Examination", type: "Mid Semester", date: "Dec 12, 2024", time: "9:00 AM", duration: "2h", status: "missed", totalMarks: 100 },
-];
+const exams: Exam[] = []
 
 export default function ExaminationsPage() {
   const [searchTerm, setSearchTerm] = useState("");

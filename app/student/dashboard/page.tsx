@@ -19,54 +19,67 @@ export const metadata: Metadata = {
 };
 
 export default function StudentDashboard() {
+  const upcomingCount = 0
+  const activeCount = 0
+  const completedCount = 0
+  const missedCount = 0
+
+  const activeExams: any[] = []
+  const upcomingExams: any[] = []
+  const completedExams: any[] = []
+
   return (
     <div className="space-y-8">
       {/* Stats */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat icon={CalendarDays} label="Upcoming" value={3} />
-        <Stat icon={PlayCircle} label="Active Now" value={1} accent="success" />
-        <Stat icon={CheckCircle2} label="Completed" value={7} />
-        <Stat icon={XCircle} label="Missed" value={1} accent="destructive" />
+        <Stat icon={CalendarDays} label="Upcoming" value={upcomingCount} />
+        <Stat icon={PlayCircle} label="Active Now" value={activeCount} accent="success" />
+        <Stat icon={CheckCircle2} label="Completed" value={completedCount} />
+        <Stat icon={XCircle} label="Missed" value={missedCount} accent="destructive" />
       </section>
 
       {/* Active exams - Available right now */}
       <Section title="Active Exams" caption="Available right now">
-        <ul className="space-y-3">
-          <ActiveCard
-            module="Operating Systems"
-            type="Mid Semester"
-            endsIn="2h 14m left"
-            examId="os-mid"
-            status="active"
-          />
-        </ul>
+        {activeExams.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground">No active exams available</p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {activeExams.map((exam) => (
+              <ActiveCard
+                key={exam.id}
+                module={exam.module}
+                type={exam.type}
+                endsIn={exam.endsIn}
+                examId={exam.examId}
+                status={exam.status}
+              />
+            ))}
+          </ul>
+        )}
       </Section>
 
       {/* Upcoming exams - Locked */}
       <Section title="Upcoming Exams" caption="Locked until the official start time">
-        <ul className="divide-y divide-border rounded-md border border-border bg-card">
-          <UpcomingRow
-            module="Advanced Algorithms"
-            type="Mid Semester"
-            date="Jan 18 · 2:00 PM"
-            duration="2h"
-            countdown="in 2 days"
-          />
-          <UpcomingRow
-            module="Database Management"
-            type="End Semester"
-            date="Jan 22 · 10:00 AM"
-            duration="3h"
-            countdown="in 6 days"
-          />
-          <UpcomingRow
-            module="Computer Networks"
-            type="Quiz"
-            date="Jan 15 · 9:00 AM"
-            duration="45m"
-            countdown="tomorrow"
-          />
-        </ul>
+        {upcomingExams.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground">No upcoming exams scheduled</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border rounded-md border border-border bg-card">
+            {upcomingExams.map((exam) => (
+              <UpcomingRow
+                key={exam.id}
+                module={exam.module}
+                type={exam.type}
+                date={exam.date}
+                duration={exam.duration}
+                countdown={exam.countdown}
+              />
+            ))}
+          </ul>
+        )}
         <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <Lock className="h-3.5 w-3.5" />
           Questions and exam paper become visible only at the scheduled time.
@@ -76,18 +89,32 @@ export default function StudentDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Completed */}
         <Section title="Recently Completed" caption="Submitted exams">
-          <ul className="divide-y divide-border rounded-md border border-border bg-card">
-            <CompletedRow module="Software Engineering" date="Jan 8" status="Submitted" />
-            <CompletedRow module="Discrete Math" date="Jan 5" status="Submitted" />
-            <CompletedRow module="Data Structures" date="Dec 28" status="Submitted" />
-          </ul>
+          {completedExams.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">No completed exams</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border rounded-md border border-border bg-card">
+              {completedExams.map((exam) => (
+                <CompletedRow key={exam.id} module={exam.module} date={exam.date} status={exam.status} />
+              ))}
+            </ul>
+          )}
         </Section>
 
         {/* Missed */}
         <Section title="Missed Exams" caption="Marked absent">
-          <ul className="divide-y divide-border rounded-md border border-border bg-card">
-            <MissedRow module="Linear Algebra" date="Dec 12" reason="No attempt" />
-          </ul>
+          {completedExams.filter((e: any) => e.status === 'missed').length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">No missed exams</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border rounded-md border border-border bg-card">
+              {completedExams.filter((e: any) => e.status === 'missed').map((exam) => (
+                <MissedRow key={exam.id} module={exam.module} date={exam.date} reason={exam.reason} />
+              ))}
+            </ul>
+          )}
         </Section>
       </div>
 

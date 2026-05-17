@@ -1,7 +1,8 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import {
+import { useState } from 'react'
+import Link from 'next/link'
+import { 
   Award,
   Hourglass,
   EyeOff,
@@ -10,52 +11,30 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
+  AlertCircle,
+  Info
+} from 'lucide-react'
 
 type Tab = "released" | "pending" | "hidden" | "missed";
 
-const RELEASED = [
-  {
-    module: "Software Engineering",
-    type: "Mid Semester",
-    date: "Jan 8, 2025",
-    score: 84,
-    max: 100,
-    grade: "A",
-    feedback:
-      "Strong analysis on architectural patterns. Improve discussion of trade-offs in CI/CD.",
-  },
-  {
-    module: "Discrete Math",
-    type: "Quiz",
-    date: "Jan 5, 2025",
-    score: 18,
-    max: 20,
-    grade: "A",
-    feedback: "Excellent — minor slip on induction proof in Q4.",
-  },
-  {
-    module: "Data Structures",
-    type: "End Semester",
-    date: "Dec 28, 2024",
-    score: 67,
-    max: 100,
-    grade: "B",
-    feedback: "Good complexity analysis. Tree balancing question needed more depth.",
-  },
-];
+const RELEASED: any[] = []
 
 export default function StudentResults() {
   const [tab, setTab] = useState<Tab>("released");
+
+  const releasedCount = 0
+  const pendingCount = 0
+  const hiddenCount = 0
+  const missedCount = 0
 
   return (
     <div className="space-y-6 p-6 sm:p-8">
       {/* Stats */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat icon={Award} label="Released" value={3} />
-        <Stat icon={Hourglass} label="Pending" value={2} accent="warning" />
-        <Stat icon={EyeOff} label="Hidden" value={1} />
-        <Stat icon={XCircle} label="Missed" value={1} accent="destructive" />
+        <Stat icon={Award} label="Released" value={releasedCount} />
+        <Stat icon={Hourglass} label="Pending" value={pendingCount} accent="warning" />
+        <Stat icon={EyeOff} label="Hidden" value={hiddenCount} />
+        <Stat icon={XCircle} label="Missed" value={missedCount} accent="destructive" />
       </section>
 
         {/* Tabs */}
@@ -78,37 +57,40 @@ export default function StudentResults() {
           </nav>
         </div>
 
+        {/* Tab Content */}
         {tab === "released" && <ReleasedList />}
         {tab === "pending" && (
-          <Empty
-            icon={Hourglass}
-            title="2 results awaiting review"
-            text="Your lecturer is finalising grades for these exams."
-          />
+          <div className="text-center py-12 border border-border rounded-md bg-card">
+            <Hourglass className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No pending results</p>
+          </div>
         )}
         {tab === "hidden" && (
-          <Empty
-            icon={EyeOff}
-            title="Result hidden by faculty"
-            text="This result has been withheld pending administrative review."
-          />
+          <div className="text-center py-12 border border-border rounded-md bg-card">
+            <EyeOff className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No hidden results</p>
+          </div>
         )}
         {tab === "missed" && (
-          <Empty
-            icon={XCircle}
-            title="1 missed exam"
-            text="Linear Algebra · Dec 12 — submit a review request from Help & Support."
-          />
+          <div className="text-center py-12 border border-border rounded-md bg-card">
+            <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No missed exams</p>
+          </div>
         )}
     </div>
   );
 }
 
 function ReleasedList() {
-  const [open, setOpen] = useState<string | null>(RELEASED[0].module);
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="space-y-3">
-      {RELEASED.map((r) => {
+      {RELEASED.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-sm text-muted-foreground">No released results available</p>
+        </div>
+      ) : (
+        RELEASED.map((r) => {
         const pct = Math.round((r.score / r.max) * 100);
         const isOpen = open === r.module;
         return (
@@ -156,13 +138,13 @@ function ReleasedList() {
                     />
                   </div>
                 </div>
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                  Lecturer feedback
-                </p>
-                <p className="mt-1 text-sm text-foreground">{r.feedback}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
-                    <Download className="h-3.5 w-3.5" /> Download statement
+                <div className="mb-4 rounded-md bg-muted/50 p-3">
+                  <p className="text-xs font-semibold text-foreground mb-1">Feedback</p>
+                  <p className="text-sm text-muted-foreground">{r.feedback}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+                    <Download className="h-3.5 w-3.5" /> Download Report
                   </button>
                   <button className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
                     <TrendingUp className="h-3.5 w-3.5" /> Compare with cohort
@@ -172,7 +154,8 @@ function ReleasedList() {
             )}
           </div>
         );
-      })}
+      })
+      )}
     </div>
   );
 }
@@ -196,35 +179,15 @@ function Stat({
       : "text-primary bg-primary/10";
   return (
     <div className="rounded-md border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {label}
-        </p>
-        <span className={"flex h-8 w-8 items-center justify-center rounded-md " + tone}>
-          <Icon className="h-4 w-4" />
-        </span>
+      <div className="flex items-center gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${tone}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
       </div>
-      <p className="mt-3 text-3xl font-semibold text-foreground">{value}</p>
-    </div>
-  );
-}
-
-function Empty({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: typeof Hourglass;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="rounded-md border border-dashed border-border bg-card p-10 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{text}</p>
     </div>
   );
 }

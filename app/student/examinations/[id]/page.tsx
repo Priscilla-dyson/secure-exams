@@ -35,34 +35,7 @@ interface Question {
 
 // Sample questions for Operating Systems exam
 const QUESTIONS: Record<string, Question[]> = {
-  "os-mid": [
-    {
-      id: "q1",
-      type: "mcq",
-      prompt: "Which scheduling algorithm minimizes average waiting time for a known set of jobs?",
-      marks: 2,
-      options: ["FCFS", "Round Robin", "Shortest Job First", "Priority"],
-    },
-    {
-      id: "q2",
-      type: "short",
-      prompt: "Define a deadlock and list the four Coffman conditions.",
-      marks: 4,
-    },
-    {
-      id: "q3",
-      type: "essay",
-      prompt: "Compare paging and segmentation. Discuss trade-offs in fragmentation, address translation, and protection.",
-      marks: 10,
-    },
-    {
-      id: "q4",
-      type: "math",
-      prompt: "Given a page size of 4KB and a 32-bit address space, compute the number of entries in a single-level page table.",
-      marks: 4,
-    },
-  ],
-  // Add more exams here
+  "os-mid": []
 };
 
 const EXAM_INFO: Record<string, { title: string; module: string; duration: number; totalMarks: number }> = {
@@ -81,6 +54,16 @@ export default function ExamPaperPage() {
   
   const questions = QUESTIONS[examId] || QUESTIONS["os-mid"];
   const examInfo = EXAM_INFO[examId] || EXAM_INFO["os-mid"];
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">No questions available for this exam</p>
+        </div>
+      </div>
+    );
+  }
 
   if (stage === "readiness") {
     return <Readiness examInfo={examInfo} onStart={() => setStage("active")} />;

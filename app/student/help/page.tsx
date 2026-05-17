@@ -11,24 +11,7 @@ import {
   BookOpen,
 } from "lucide-react";
 
-const FAQS = [
-  {
-    q: "What happens if my internet disconnects during an exam?",
-    a: "Your answers are auto-saved every 5 seconds. Reconnect within 60 seconds and you'll resume exactly where you left off. Longer disconnects are reviewed by your invigilator.",
-  },
-  {
-    q: "Why can't I see exam questions before the start time?",
-    a: "Questions and exam papers are released only at the official scheduled time. You can see the date, time, and duration in advance from your dashboard.",
-  },
-  {
-    q: "How is AI monitoring used?",
-    a: "Camera, microphone, and screen activity are analysed for academic integrity. Recordings are encrypted and reviewed by a human only when an automatic flag is raised.",
-  },
-  {
-    q: "When are results released?",
-    a: "Results appear under Results once your lecturer publishes them. You'll also receive a notification on your dashboard.",
-  },
-];
+const FAQS: any[] = []
 
 export default function HelpPage() {
   return (
@@ -46,9 +29,15 @@ export default function HelpPage() {
             Frequently asked questions
           </h2>
           <div className="divide-y divide-border rounded-md border border-border bg-card">
-            {FAQS.map((f, i) => (
-              <Faq key={i} q={f.q} a={f.a} defaultOpen={i === 0} />
-            ))}
+            {FAQS.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-muted-foreground">No FAQs available</p>
+              </div>
+            ) : (
+              FAQS.map((f, i) => (
+                <Faq key={i} q={f.q} a={f.a} defaultOpen={i === 0} />
+              ))
+            )}
           </div>
         </section>
 
