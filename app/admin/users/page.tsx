@@ -36,6 +36,34 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserStatus | 'all'>('all');
   const [showAddUser, setShowAddUser] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+
+  const handleAddUser = () => {
+    setShowAddUser(true);
+  };
+
+  const handleEditUser = (userId: string) => {
+    console.log('Edit user:', userId);
+    // Implement edit functionality
+  };
+
+  const handleResetPassword = (userId: string) => {
+    if (confirm('Are you sure you want to reset this user\'s password?')) {
+      console.log('Reset password for user:', userId);
+      // Implement password reset
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      setUsers(users.filter(u => u.id !== userId));
+    }
+  };
+
+  const handleSaveUser = () => {
+    // Implement save user functionality
+    setShowAddUser(false);
+  };
 
   const mockUsers: User[] = []
 
@@ -74,7 +102,7 @@ export default function UserManagement() {
           <h1 className="text-2xl font-semibold text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground">Manage students, lecturers, and administrators</p>
         </div>
-        <Button>
+        <Button onClick={handleAddUser}>
           <Plus className="w-4 h-4 mr-2" />
           Add User
         </Button>
@@ -182,13 +210,13 @@ export default function UserManagement() {
                     <td className="px-4 py-4">{getStatusBadge(user.status)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button className="p-1 text-muted-foreground hover:text-foreground">
+                        <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleEditUser(user.id)}>
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button className="p-1 text-muted-foreground hover:text-foreground">
+                        <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleResetPassword(user.id)}>
                           <RotateCcw className="h-4 w-4" />
                         </button>
-                        <button className="p-1 text-muted-foreground hover:text-destructive">
+                        <button className="p-1 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteUser(user.id)}>
                           <UserX className="h-4 w-4" />
                         </button>
                       </div>
@@ -229,7 +257,7 @@ export default function UserManagement() {
               </div>
               <div className="flex gap-2 justify-end mt-6">
                 <Button variant="outline" onClick={() => setShowAddUser(false)}>Cancel</Button>
-                <Button>Add User</Button>
+                <Button onClick={handleSaveUser}>Add User</Button>
               </div>
             </div>
           </div>

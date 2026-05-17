@@ -58,9 +58,44 @@ export default function SupportAndAnnouncements() {
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [showNewAnnouncement, setShowNewAnnouncement] = useState(false);
 
-  const tickets: SupportTicket[] = []
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-  const announcements: Announcement[] = []
+  const handleCreateNew = () => {
+    console.log('Create new based on active tab:', activeTab);
+    if (activeTab === 'tickets') {
+      setShowNewTicket(true);
+    } else {
+      setShowNewAnnouncement(true);
+    }
+  };
+
+  const handleViewTicket = (ticketId: string) => {
+    console.log('View ticket:', ticketId);
+    // Implement view ticket functionality
+  };
+
+  const handleRespondTicket = (ticketId: string) => {
+    console.log('Respond to ticket:', ticketId);
+    // Implement respond to ticket functionality
+  };
+
+  const handleCloseTicket = (ticketId: string) => {
+    if (confirm('Are you sure you want to close this ticket?')) {
+      setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: 'closed' as TicketStatus } : t));
+    }
+  };
+
+  const handleArchiveAnnouncement = (announcementId: string) => {
+    console.log('Archive announcement:', announcementId);
+    // Implement archive announcement functionality
+  };
+
+  const handleDeleteAnnouncement = (announcementId: string) => {
+    if (confirm('Are you sure you want to delete this announcement?')) {
+      setAnnouncements(announcements.filter(a => a.id !== announcementId));
+    }
+  };
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
@@ -120,7 +155,7 @@ export default function SupportAndAnnouncements() {
           <h1 className="text-2xl font-semibold text-foreground">Support & Announcements</h1>
           <p className="text-sm text-muted-foreground">Manage support tickets and system announcements</p>
         </div>
-        <Button>
+        <Button onClick={handleCreateNew}>
           <Plus className="w-4 h-4 mr-2" />
           Create New
         </Button>
@@ -266,16 +301,16 @@ export default function SupportAndAnnouncements() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-end gap-1">
-                            <button className="p-1 text-muted-foreground hover:text-foreground" title="View">
+                            <button className="p-1 text-muted-foreground hover:text-foreground" title="View" onClick={() => handleViewTicket(ticket.id)}>
                               <User className="h-4 w-4" />
                             </button>
                             {ticket.status === 'open' && (
-                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Respond">
+                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Respond" onClick={() => handleRespondTicket(ticket.id)}>
                                 <CheckCircle className="h-4 w-4" />
                               </button>
                             )}
                             {ticket.status === 'resolved' && (
-                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Close">
+                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Close" onClick={() => handleCloseTicket(ticket.id)}>
                                 <Archive className="h-4 w-4" />
                               </button>
                             )}
@@ -332,10 +367,10 @@ export default function SupportAndAnnouncements() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button className="p-1 text-muted-foreground hover:text-foreground">
+                      <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleArchiveAnnouncement(announcement.id)}>
                         <Archive className="h-4 w-4" />
                       </button>
-                      <button className="p-1 text-muted-foreground hover:text-destructive">
+                      <button className="p-1 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteAnnouncement(announcement.id)}>
                         <XCircle className="h-4 w-4" />
                       </button>
                     </div>

@@ -36,7 +36,41 @@ export default function ExaminationOversight() {
   const [statusFilter, setStatusFilter] = useState<ExamStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const exams: Exam[] = []
+  const [exams, setExams] = useState<Exam[]>([]);
+
+  const handleRefresh = () => {
+    console.log('Refreshing exam data...');
+    // Implement refresh functionality
+  };
+
+  const handleMonitorExam = (examId: string) => {
+    console.log('Monitoring exam:', examId);
+    // Implement monitor functionality
+  };
+
+  const handleExtendTime = (examId: string) => {
+    if (confirm('Are you sure you want to extend time for this exam?')) {
+      console.log('Extending time for exam:', examId);
+      // Implement extend time functionality
+    }
+  };
+
+  const handleForceStop = (examId: string) => {
+    if (confirm('Are you sure you want to force stop this exam? This action cannot be undone.')) {
+      console.log('Force stopping exam:', examId);
+      setExams(exams.map(e => e.id === examId ? { ...e, status: 'cancelled' as ExamStatus } : e));
+    }
+  };
+
+  const handleViewDetails = (examId: string) => {
+    console.log('Viewing exam details:', examId);
+    // Implement view details functionality
+  };
+
+  const handleEditExam = (examId: string) => {
+    console.log('Editing exam:', examId);
+    // Implement edit exam functionality
+  };
 
   const filteredExams = exams.filter(exam => {
     const matchesStatus = statusFilter === 'all' || exam.status === statusFilter;
@@ -71,7 +105,7 @@ export default function ExaminationOversight() {
           <p className="text-sm text-muted-foreground">Monitor and manage all examinations in real-time</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
@@ -133,13 +167,13 @@ export default function ExaminationOversight() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button className="p-1 text-muted-foreground hover:text-foreground" title="Monitor">
+                    <button className="p-1 text-muted-foreground hover:text-foreground" title="Monitor" onClick={() => handleMonitorExam(exam.id)}>
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button className="p-1 text-muted-foreground hover:text-warning" title="Extend Time">
+                    <button className="p-1 text-muted-foreground hover:text-warning" title="Extend Time" onClick={() => handleExtendTime(exam.id)}>
                       <Clock className="h-4 w-4" />
                     </button>
-                    <button className="p-1 text-muted-foreground hover:text-destructive" title="Force Stop">
+                    <button className="p-1 text-muted-foreground hover:text-destructive" title="Force Stop" onClick={() => handleForceStop(exam.id)}>
                       <Square className="h-4 w-4" />
                     </button>
                   </div>
@@ -220,16 +254,16 @@ export default function ExaminationOversight() {
                       <td className="px-4 py-4">{getStatusBadge(exam.status)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-1">
-                          <button className="p-1 text-muted-foreground hover:text-foreground" title="View Details">
+                          <button className="p-1 text-muted-foreground hover:text-foreground" title="View Details" onClick={() => handleViewDetails(exam.id)}>
                             <Eye className="h-4 w-4" />
                           </button>
                           {exam.status === 'scheduled' && (
-                            <button className="p-1 text-muted-foreground hover:text-warning" title="Edit">
+                            <button className="p-1 text-muted-foreground hover:text-warning" title="Edit" onClick={() => handleEditExam(exam.id)}>
                               <Clock className="h-4 w-4" />
                             </button>
                           )}
                           {exam.status === 'active' && (
-                            <button className="p-1 text-muted-foreground hover:text-destructive" title="Emergency Stop">
+                            <button className="p-1 text-muted-foreground hover:text-destructive" title="Emergency Stop" onClick={() => handleForceStop(exam.id)}>
                               <Square className="h-4 w-4" />
                             </button>
                           )}

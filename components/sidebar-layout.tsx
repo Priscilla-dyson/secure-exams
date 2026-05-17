@@ -229,8 +229,8 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
               ))}
             </nav>
             
-            {/* Footer Section */}
-            <div className="p-4 border-t border-border">
+            {/* Footer Section - Sticky at bottom */}
+            <div className="sticky bottom-0 p-4 border-t border-border bg-surface-container-lowest">
               <div className="p-4 rounded-lg bg-surface-container">
                 <div className="flex items-center gap-3 mb-3">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -247,7 +247,7 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
             </div>
             
             {/* Logout Button */}
-            <div className="p-4 border-t border-border">
+            <div className="p-4 border-t border-border bg-surface-container-lowest">
               <button
                 onClick={handleLogout}
                 className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-container-lowest px-4 py-3 text-sm font-semibold text-onSurface-variant transition-all hover:bg-error/10 hover:text-error hover:border-error/30"

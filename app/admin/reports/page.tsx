@@ -32,7 +32,22 @@ export default function ReportsAndResults() {
 
   const integrityStats: any[] = []
 
-  const recentIncidents: any[] = []
+  const [recentIncidents, setRecentIncidents] = useState<any[]>([]);
+
+  const handleExportReport = () => {
+    console.log('Exporting report for:', activeTab, 'time range:', timeRange);
+    // Implement export report functionality
+  };
+
+  const handleDownloadCSV = () => {
+    console.log('Downloading CSV for:', activeTab, 'time range:', timeRange);
+    // Implement download CSV functionality
+  };
+
+  const handleViewIncident = (incidentId: string) => {
+    console.log('Viewing incident details:', incidentId);
+    // Implement view incident functionality
+  };
 
   const tabs = [
     { id: 'examination', label: 'Examination Reports', icon: BarChart3 },
@@ -81,7 +96,7 @@ export default function ReportsAndResults() {
           <h1 className="text-2xl font-semibold text-foreground">Reports & Results</h1>
           <p className="text-sm text-muted-foreground">View and download examination, user, and integrity reports</p>
         </div>
-        <Button>
+        <Button onClick={handleExportReport}>
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>
@@ -105,7 +120,7 @@ export default function ReportsAndResults() {
               </button>
             ))}
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleDownloadCSV}>
             <FileDown className="w-4 h-4 mr-2" />
             Download CSV
           </Button>
@@ -245,7 +260,7 @@ export default function ReportsAndResults() {
                       </div>
                       <div className="flex items-center gap-2">
                         {getStatusBadge(incident.status)}
-                        <button className="p-1 text-muted-foreground hover:text-foreground">
+                        <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleViewIncident(incident.id)}>
                           <Eye className="h-4 w-4" />
                         </button>
                       </div>

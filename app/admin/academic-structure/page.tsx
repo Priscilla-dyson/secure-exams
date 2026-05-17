@@ -42,9 +42,40 @@ export default function AcademicStructure() {
   const [activeTab, setActiveTab] = useState<TabType>('departments');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const departments: Department[] = []
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
 
-  const modules: Module[] = []
+  const handleAddNew = () => {
+    console.log('Add new item based on active tab:', activeTab);
+    // Implement add functionality based on active tab
+  };
+
+  const handleEditDepartment = (deptId: string) => {
+    console.log('Edit department:', deptId);
+    // Implement edit department functionality
+  };
+
+  const handleDeleteDepartment = (deptId: string) => {
+    if (confirm('Are you sure you want to delete this department?')) {
+      setDepartments(departments.filter(d => d.id !== deptId));
+    }
+  };
+
+  const handleEditModule = (moduleId: string) => {
+    console.log('Edit module:', moduleId);
+    // Implement edit module functionality
+  };
+
+  const handleAssignLecturer = (moduleId: string) => {
+    console.log('Assign lecturer to module:', moduleId);
+    // Implement assign lecturer functionality
+  };
+
+  const handleDeleteModule = (moduleId: string) => {
+    if (confirm('Are you sure you want to delete this module?')) {
+      setModules(modules.filter(m => m.id !== moduleId));
+    }
+  };
 
   const tabs = [
     { id: 'departments', label: 'Departments', icon: Building2 },
@@ -61,7 +92,7 @@ export default function AcademicStructure() {
           <h1 className="text-2xl font-semibold text-foreground">Academic Structure</h1>
           <p className="text-sm text-muted-foreground">Manage departments, modules, and academic calendar</p>
         </div>
-        <Button>
+        <Button onClick={handleAddNew}>
           <Plus className="w-4 h-4 mr-2" />
           Add New
         </Button>
@@ -122,10 +153,10 @@ export default function AcademicStructure() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button className="p-1 text-muted-foreground hover:text-foreground">
+                      <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleEditDepartment(dept.id)}>
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button className="p-1 text-muted-foreground hover:text-destructive">
+                      <button className="p-1 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteDepartment(dept.id)}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -199,13 +230,13 @@ export default function AcademicStructure() {
                       <td className="px-4 py-4 text-sm text-foreground">{module.semester}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          <button className="p-1 text-muted-foreground hover:text-foreground">
+                          <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleEditModule(module.id)}>
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button className="p-1 text-muted-foreground hover:text-foreground">
+                          <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleAssignLecturer(module.id)}>
                             <UserCheck className="h-4 w-4" />
                           </button>
-                          <button className="p-1 text-muted-foreground hover:text-destructive">
+                          <button className="p-1 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteModule(module.id)}>
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
