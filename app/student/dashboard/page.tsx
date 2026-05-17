@@ -121,21 +121,9 @@ export default function StudentDashboard() {
       {/* Notifications */}
       <Section title="Notifications" caption="Reminders, announcements, results">
         <ul className="space-y-2">
-          <Notice
-            icon={Award}
-            tone="success"
-            text="Result released for Software Engineering — view in Results."
-          />
-          <Notice
-            icon={Bell}
-            tone="warning"
-            text="Reminder: Computer Networks Quiz starts tomorrow at 9:00 AM."
-          />
-          <Notice
-            icon={Megaphone}
-            tone="info"
-            text="Announcement: Mid-semester schedule has been updated by your faculty."
-          />
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground">No notifications</p>
+          </div>
         </ul>
       </Section>
 

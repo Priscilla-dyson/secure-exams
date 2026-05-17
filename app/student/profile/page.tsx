@@ -10,12 +10,12 @@ export default function StudentProfile() {
     <div className="mx-auto max-w-4xl space-y-6 p-6 sm:p-8">
         <div className="flex items-center gap-4 rounded-md border border-border bg-card p-5">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-            MT
+            --
           </div>
           <div>
-            <p className="text-base font-semibold text-foreground">Miles Tembo</p>
+            <p className="text-base font-semibold text-foreground">Student Name</p>
             <p className="text-xs text-muted-foreground">
-              Student ID 2021-CS-0421 · Computer Science
+              Student ID · Programme
             </p>
           </div>
           <span className="ml-auto inline-flex items-center gap-1 rounded bg-[color:var(--success)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--success)]">
@@ -53,10 +53,10 @@ export default function StudentProfile() {
 
         {tab === "personal" && (
           <Form>
-            <Field label="Full name" defaultValue="Miles Tembo" />
-            <Field label="Email" type="email" defaultValue="miles.tembo@university.edu" />
-            <Field label="Phone" defaultValue="+260 977 000 000" />
-            <Field label="Programme" defaultValue="BSc. Computer Science" />
+            <Field label="Full name" />
+            <Field label="Email" type="email" />
+            <Field label="Phone" />
+            <Field label="Programme" />
           </Form>
         )}
         {tab === "password" && (

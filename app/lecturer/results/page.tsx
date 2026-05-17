@@ -114,8 +114,7 @@ export default function ResultsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="advanced-algorithms">Advanced Algorithms - Mid Semester</SelectItem>
-                    <SelectItem value="data-structures">Data Structures - End Semester</SelectItem>
+                    <SelectItem value="none">No exams available</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

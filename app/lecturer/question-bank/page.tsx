@@ -132,9 +132,6 @@ export default function QuestionBankPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
-                  <SelectItem value="CS301">CS301 - Advanced Algorithms</SelectItem>
-                  <SelectItem value="CS201">CS201 - Data Structures</SelectItem>
-                  <SelectItem value="CS302">CS302 - Database Management</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={selectedType} onValueChange={setSelectedType}>

@@ -60,10 +60,6 @@ export default function HelpPage() {
               </Field>
               <Field label="Related module">
                 <select className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary">
-                  <option>Operating Systems</option>
-                  <option>Advanced Algorithms</option>
-                  <option>Database Management</option>
-                  <option>Computer Networks</option>
                   <option>None</option>
                 </select>
               </Field>
