@@ -1,27 +1,23 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import {
-  FileText,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  Eye,
-  Pause,
-  Square,
-  Plus,
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { 
   Search,
-  Filter,
-  Users,
-  UserX,
-  Activity,
-  Shield,
-  Calendar,
-  BarChart3,
   RefreshCw,
-} from "lucide-react";
+  Eye,
+  Clock,
+  Square,
+  Filter,
+  Calendar,
+  Users,
+  AlertTriangle
+} from 'lucide-react'
 
-type ExamStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
+type ExamStatus = 'scheduled' | 'active' | 'completed' | 'cancelled'
 
 interface Exam {
   id: string;
@@ -40,44 +36,7 @@ export default function ExaminationOversight() {
   const [statusFilter, setStatusFilter] = useState<ExamStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const exams: Exam[] = [
-    {
-      id: '1',
-      title: 'Data Structures Mid Semester',
-      module: 'Data Structures & Algorithms',
-      moduleCode: 'CS-301',
-      lecturer: 'Dr. Sarah Johnson',
-      date: '2025-01-20 09:00',
-      duration: '2 hours',
-      status: 'active',
-      enrolledStudents: 120,
-      attendingStudents: 118,
-    },
-    {
-      id: '2',
-      title: 'Database Management Quiz',
-      module: 'Database Management',
-      moduleCode: 'CS-302',
-      lecturer: 'Dr. John Smith',
-      date: '2025-01-22 14:00',
-      duration: '45 minutes',
-      status: 'scheduled',
-      enrolledStudents: 85,
-      attendingStudents: 0,
-    },
-    {
-      id: '3',
-      title: 'Linear Algebra Final',
-      module: 'Linear Algebra',
-      moduleCode: 'MATH-201',
-      lecturer: 'Dr. Michael Brown',
-      date: '2025-01-18 10:00',
-      duration: '3 hours',
-      status: 'completed',
-      enrolledStudents: 95,
-      attendingStudents: 92,
-    },
-  ];
+  const exams: Exam[] = []
 
   const filteredExams = exams.filter(exam => {
     const matchesStatus = statusFilter === 'all' || exam.status === statusFilter;
@@ -87,78 +46,40 @@ export default function ExaminationOversight() {
     return matchesStatus && matchesSearch;
   });
 
+  const activeExams = exams.filter(exam => exam.status === 'active');
+
   const getStatusBadge = (status: ExamStatus) => {
     const styles = {
-      scheduled: 'bg-warning/10 text-warning',
+      scheduled: 'bg-primary/10 text-primary',
       active: 'bg-success/10 text-success',
       completed: 'bg-muted text-muted-foreground',
       cancelled: 'bg-destructive/10 text-destructive',
     };
     return (
       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[status]}`}>
-        {status === 'active' && <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />}
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
 
-  const activeExams = exams.filter(exam => exam.status === 'active');
-  const totalStudents = activeExams.reduce((sum, exam) => sum + exam.attendingStudents, 0);
-
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Active Exams
-            </p>
-            <Activity className="h-4 w-4 text-success" />
-          </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{activeExams.length}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Currently running</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Examination Oversight</h1>
+          <p className="text-sm text-muted-foreground">Monitor and manage all examinations in real-time</p>
         </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Students Writing
-            </p>
-            <Users className="h-4 w-4 text-primary" />
-          </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{totalStudents}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Currently active</p>
-        </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              AI Alerts
-            </p>
-            <AlertTriangle className="h-4 w-4 text-warning" />
-          </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">3</p>
-          <p className="mt-1 text-xs text-muted-foreground">Suspicious activity</p>
-        </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              System Health
-            </p>
-            <Shield className="h-4 w-4 text-success" />
-          </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">Good</p>
-          <p className="mt-1 text-xs text-muted-foreground">All systems operational</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <button className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="p-4">
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -182,7 +103,7 @@ export default function ExaminationOversight() {
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
-      </div>
+      </Card>
 
       {/* Active Exam Monitoring */}
       {activeExams.length > 0 && (
@@ -206,24 +127,21 @@ export default function ExaminationOversight() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Time Remaining</p>
-                        <p className="text-sm font-medium text-foreground">1h 24m</p>
+                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="text-sm font-medium text-foreground">{exam.duration}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    {getStatusBadge(exam.status)}
-                    <div className="flex gap-1">
-                      <button className="p-1 text-muted-foreground hover:text-foreground" title="Monitor">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="p-1 text-muted-foreground hover:text-warning" title="Extend Time">
-                        <Clock className="h-4 w-4" />
-                      </button>
-                      <button className="p-1 text-muted-foreground hover:text-destructive" title="Force Stop">
-                        <Square className="h-4 w-4" />
-                      </button>
-                    </div>
+                  <div className="flex gap-1">
+                    <button className="p-1 text-muted-foreground hover:text-foreground" title="Monitor">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button className="p-1 text-muted-foreground hover:text-warning" title="Extend Time">
+                      <Clock className="h-4 w-4" />
+                    </button>
+                    <button className="p-1 text-muted-foreground hover:text-destructive" title="Force Stop">
+                      <Square className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -269,52 +187,62 @@ export default function ExaminationOversight() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredExams.map((exam) => (
-                  <tr key={exam.id} className="hover:bg-accent/50">
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{exam.title}</p>
-                        <p className="text-xs text-muted-foreground">ID: {exam.id}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{exam.moduleCode}</p>
-                        <p className="text-xs text-muted-foreground">{exam.module}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-foreground">{exam.lecturer}</td>
-                    <td className="px-4 py-4 text-sm text-foreground">{exam.date}</td>
-                    <td className="px-4 py-4 text-sm text-foreground">{exam.duration}</td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm">
-                        <span className="text-foreground">{exam.attendingStudents}</span>
-                        <span className="text-muted-foreground">/{exam.enrolledStudents}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">{getStatusBadge(exam.status)}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="p-1 text-muted-foreground hover:text-foreground" title="View Details">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button className="p-1 text-muted-foreground hover:text-foreground" title="View Reports">
-                          <BarChart3 className="h-4 w-4" />
-                        </button>
-                        {exam.status === 'active' && (
-                          <button className="p-1 text-muted-foreground hover:text-destructive" title="Emergency Stop">
-                            <Square className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                {filteredExams.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No examinations found</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredExams.map((exam) => (
+                    <tr key={exam.id} className="hover:bg-accent/50">
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{exam.title}</p>
+                          <p className="text-xs text-muted-foreground">ID: {exam.id}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{exam.moduleCode}</p>
+                          <p className="text-xs text-muted-foreground">{exam.module}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-foreground">{exam.lecturer}</td>
+                      <td className="px-4 py-4 text-sm text-foreground">{exam.date}</td>
+                      <td className="px-4 py-4 text-sm text-foreground">{exam.duration}</td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm">
+                          <span className="text-foreground">{exam.attendingStudents}</span>
+                          <span className="text-muted-foreground">/{exam.enrolledStudents}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">{getStatusBadge(exam.status)}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button className="p-1 text-muted-foreground hover:text-foreground" title="View Details">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          {exam.status === 'scheduled' && (
+                            <button className="p-1 text-muted-foreground hover:text-warning" title="Edit">
+                              <Clock className="h-4 w-4" />
+                            </button>
+                          )}
+                          {exam.status === 'active' && (
+                            <button className="p-1 text-muted-foreground hover:text-destructive" title="Emergency Stop">
+                              <Square className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
