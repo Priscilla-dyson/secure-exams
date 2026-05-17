@@ -35,44 +35,21 @@ export default function ResultsPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [resultStatus, setResultStatus] = useState<'hidden' | 'published'>('hidden')
 
-  const examData = {
-    'advanced-algorithms': {
-      name: 'Advanced Algorithms - Mid Semester',
-      date: '2025-01-15',
-      totalStudents: 0,
-      submitted: 0,
-      absent: 0,
-      autoSubmitted: 0,
-      inProgress: 0,
-      passCount: 0,
-      failCount: 0,
-      averageScore: 0,
-      highestScore: 0,
-      lowestScore: 0,
-      integrityWarnings: 0,
-      integrityViolations: 0,
-      students: []
-    },
-    'data-structures': {
-      name: 'Data Structures - End Semester',
-      date: '2025-01-10',
-      totalStudents: 0,
-      submitted: 0,
-      absent: 0,
-      autoSubmitted: 0,
-      inProgress: 0,
-      passCount: 0,
-      failCount: 0,
-      averageScore: 0,
-      highestScore: 0,
-      lowestScore: 0,
-      integrityWarnings: 0,
-      integrityViolations: 0,
-      students: []
-    }
-  }
+  const examData: any = {}
 
   const currentExam = examData[selectedExam as keyof typeof examData]
+
+  if (!currentExam) {
+    return (
+      <SidebarLayout userRole="lecturer">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">No exam results available</p>
+          </div>
+        </div>
+      </SidebarLayout>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     const styles = {

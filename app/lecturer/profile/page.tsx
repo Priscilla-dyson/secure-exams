@@ -223,36 +223,8 @@ export default function ProfileSettingsPage() {
               <div className="border-t border-border pt-4 mt-6">
                 <h4 className="text-md font-semibold text-foreground mb-3">Active Sessions</h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-md border border-border bg-card">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                        <Smartphone className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Chrome on Windows</p>
-                        <p className="text-xs text-muted-foreground">192.168.1.100 • Last active 2 hours ago</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <LogOut className="w-4 h-4" />
-                      Terminate
-                    </Button>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-md border border-border bg-card">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                        <Globe className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Mobile App</p>
-                        <p className="text-xs text-muted-foreground">iOS • Last active 1 day ago</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <LogOut className="w-4 h-4" />
-                      Terminate
-                    </Button>
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No active sessions</p>
                   </div>
                 </div>
               </div>
