@@ -21,6 +21,8 @@ import {
   Mic,
 } from "lucide-react";
 import React from "react";
+import { useAntiCheat } from "@/hooks/useAntiCheat";
+import { AntiCheatWarning } from "@/components/anti-cheat-warning";
 
 type Stage = "readiness" | "active" | "submitted";
 type QType = "mcq" | "short" | "essay" | "math";
@@ -214,6 +216,30 @@ function ActiveExam({ questions, examInfo, onSubmit }: { questions: Question[]; 
   const [secondsLeft, setSecondsLeft] = useState(examInfo.duration * 60);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
 
+  // Anti-cheat integration
+  const {
+    violationCount,
+    isLocked,
+    isFullscreen,
+    warningMessage,
+    requestFullscreen,
+    exitFullscreen,
+    resetViolations
+  } = useAntiCheat({
+    enabled: true,
+    maxViolations: 3,
+    onViolation: (count) => {
+      console.log(`Violation ${count} detected`);
+    },
+    onAutoSubmit: () => {
+      // Auto-submit exam after max violations
+      onSubmit();
+    },
+    onFullscreenExit: () => {
+      console.log('Fullscreen exited');
+    }
+  });
+
   React.useEffect(() => {
     const timer = setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1));
@@ -241,6 +267,15 @@ function ActiveExam({ questions, examInfo, onSubmit }: { questions: Question[]; 
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Anti-cheat warning overlay */}
+      <AntiCheatWarning
+        isLocked={isLocked}
+        warningMessage={warningMessage}
+        violationCount={violationCount}
+        maxViolations={3}
+        onRequestFullscreen={requestFullscreen}
+      />
+
       <div className="max-w-6xl mx-auto py-6 px-4">
         {/* Top bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">

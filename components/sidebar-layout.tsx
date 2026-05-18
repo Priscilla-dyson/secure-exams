@@ -111,7 +111,14 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
     }
   }, [])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST'
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
     localStorage.removeItem('currentUser')
     window.location.href = '/login'
   }

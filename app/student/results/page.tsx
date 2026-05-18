@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   Award,
@@ -17,15 +17,58 @@ import {
 
 type Tab = "released" | "pending" | "hidden" | "missed";
 
-const RELEASED: any[] = []
+interface Result {
+  id: string;
+  exam: {
+    id: string;
+    title: string;
+    module: {
+      name: string;
+    };
+  };
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  grade?: string;
+  published: boolean;
+  createdAt: string;
+}
 
 export default function StudentResults() {
   const [tab, setTab] = useState<Tab>("released");
+  const [results, setResults] = useState<Result[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const releasedCount = 0
-  const pendingCount = 0
-  const hiddenCount = 0
-  const missedCount = 0
+  useEffect(() => {
+    fetchResults();
+  }, []);
+
+  const fetchResults = async () => {
+    try {
+      const response = await fetch('/api/results');
+      const data = await response.json();
+      if (data.success) {
+        setResults(data.results);
+      }
+    } catch (error) {
+      console.error('Error fetching results:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const releasedCount = results.filter(r => r.published).length;
+  const pendingCount = 0; // Will be calculated based on submission status
+  const hiddenCount = results.filter(r => !r.published).length;
+  const missedCount = 0; // Will be calculated based on missed exams
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6 sm:p-8">
@@ -58,7 +101,7 @@ export default function StudentResults() {
         </div>
 
         {/* Tab Content */}
-        {tab === "released" && <ReleasedList />}
+        {tab === "released" && <ReleasedList results={results.filter(r => r.published)} />}
         {tab === "pending" && (
           <div className="text-center py-12 border border-border rounded-md bg-card">
             <Hourglass className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -81,46 +124,48 @@ export default function StudentResults() {
   );
 }
 
-function ReleasedList() {
+function ReleasedList({ results }: { results: Result[] }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="space-y-3">
-      {RELEASED.length === 0 ? (
+      {results.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-sm text-muted-foreground">No released results available</p>
         </div>
       ) : (
-        RELEASED.map((r) => {
-        const pct = Math.round((r.score / r.max) * 100);
-        const isOpen = open === r.module;
+        results.map((r) => {
+        const pct = Math.round(r.percentage);
+        const isOpen = open === r.exam.id;
         return (
           <div
-            key={r.module}
+            key={r.id}
             className="rounded-md border border-border bg-card"
           >
             <button
-              onClick={() => setOpen(isOpen ? null : r.module)}
+              onClick={() => setOpen(isOpen ? null : r.exam.id)}
               className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">
-                  {r.module}
+                  {r.exam.module.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {r.type} · {r.date}
+                  {r.exam.title} · {new Date(r.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="font-mono text-base font-bold text-foreground">
                     {r.score}
-                    <span className="text-muted-foreground">/{r.max}</span>
+                    <span className="text-muted-foreground">/{r.totalMarks}</span>
                   </p>
                   <p className="text-[11px] text-muted-foreground">{pct}%</p>
                 </div>
-                <span className="rounded bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
-                  {r.grade}
-                </span>
+                {r.grade && (
+                  <span className="rounded bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                    {r.grade}
+                  </span>
+                )}
                 {isOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
@@ -140,7 +185,7 @@ function ReleasedList() {
                 </div>
                 <div className="mb-4 rounded-md bg-muted/50 p-3">
                   <p className="text-xs font-semibold text-foreground mb-1">Feedback</p>
-                  <p className="text-sm text-muted-foreground">{r.feedback}</p>
+                  <p className="text-sm text-muted-foreground">Your performance has been recorded. Keep up the good work!</p>
                 </div>
                 <div className="flex gap-2">
                   <button className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">

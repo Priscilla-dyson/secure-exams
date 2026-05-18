@@ -1,36 +1,103 @@
-export const VALID_CREDENTIALS = {
-  'STU001': { password: 'Student@2024', role: 'student', name: 'Sarah Johnson' },
-  'STU002': { password: 'Student@2024', role: 'student', name: 'Michael Chen' },
-  'LEC001': { password: 'Lecturer@2024', role: 'lecturer', name: 'Dr. Robert Thompson' },
-  'LEC002': { password: 'Lecturer@2024', role: 'lecturer', name: 'Prof. Angela Martinez' },
-  'ADMIN001': { password: 'Admin@2024', role: 'admin', name: 'Dr. James Williams' },
-  'ADMIN002': { password: 'Admin@2024', role: 'admin', name: 'Jennifer Foster' },
-}
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
+import { prisma } from './prisma'
 
-export type UserRole = 'student' | 'lecturer' | 'admin'
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production'
+
+export interface JWTPayload {
+  userId: string
+  email: string
+  role: string
+}
 
 export interface AuthUser {
-  userId: string
-  role: UserRole
+  id: string
+  email: string
   name: string
+  role: string
 }
 
-export const validateCredentials = (userId: string, password: string) => {
-  const user = VALID_CREDENTIALS[userId as keyof typeof VALID_CREDENTIALS]
-  if (!user) return null
-  if (user.password !== password) return null
-  return {
-    userId,
-    role: user.role as UserRole,
-    name: user.name,
+// Hash password
+export const hashPassword = async (password: string): Promise<string> => {
+  return await bcrypt.hash(password, 10)
+}
+
+// Verify password
+export const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+  return await bcrypt.compare(password, hashedPassword)
+}
+
+// Generate JWT token
+export const generateToken = (payload: JWTPayload): string => {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+}
+
+// Verify JWT token
+export const verifyToken = (token: string): JWTPayload | null => {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch (error) {
+    return null
   }
 }
 
-export const getDashboardRoute = (role: UserRole): string => {
-  const routes: Record<UserRole, string> = {
+// Login with email and password
+export const loginUser = async (email: string, password: string): Promise<AuthUser | null> => {
+  const user = await prisma.user.findUnique({
+    where: { email }
+  })
+
+  if (!user) {
+    return null
+  }
+
+  const isValid = await verifyPassword(password, user.password)
+  if (!isValid) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  }
+}
+
+// Get user by ID
+export const getUserById = async (userId: string): Promise<AuthUser | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true
+    }
+  })
+
+  if (!user) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  }
+}
+
+export type UserRole = 'STUDENT' | 'LECTURER' | 'ADMIN'
+
+export const getDashboardRoute = (role: string): string => {
+  const routes: Record<string, string> = {
+    STUDENT: '/student/dashboard',
+    LECTURER: '/lecturer/dashboard',
+    ADMIN: '/admin/dashboard',
     student: '/student/dashboard',
     lecturer: '/lecturer/dashboard',
     admin: '/admin/dashboard',
   }
-  return routes[role]
+  return routes[role] || '/student/dashboard'
 }

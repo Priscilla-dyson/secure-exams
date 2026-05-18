@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { validateCredentials, getDashboardRoute } from '@/lib/auth'
+import { getDashboardRoute } from '@/lib/auth'
 import { Shield, User, Lock, Eye, EyeOff, ArrowRight, GraduationCap, BookOpen, Award } from 'lucide-react'
 
 export default function LoginPage() {
-  const [userId, setUserId] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -25,8 +25,8 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
-    if (!userId.trim()) {
-      setError('Please enter your user ID')
+    if (!email.trim()) {
+      setError('Please enter your email')
       setIsLoading(false)
       return
     }
@@ -38,21 +38,28 @@ export default function LoginPage() {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      const user = validateCredentials(userId, password)
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      })
 
-      if (!user) {
-        setError('Invalid User ID or password. Please check and try again.')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed. Please try again.')
         setIsLoading(false)
         return
       }
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('currentUser', JSON.stringify(user))
+        localStorage.setItem('currentUser', JSON.stringify(data.user))
         localStorage.setItem('rememberMe', JSON.stringify(rememberMe))
       }
 
-      const route = getDashboardRoute(user.role)
+      const route = getDashboardRoute(data.user.role)
       router.replace(route)
     } catch (err) {
       console.error('[Login error]', err)
@@ -126,19 +133,19 @@ export default function LoginPage() {
 
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-6">
-              {/* User ID Field */}
+              {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="user-id" className="text-label-caps text-onSurface-variant">
-                  User ID
+                <Label htmlFor="email" className="text-label-caps text-onSurface-variant">
+                  Email
                 </Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-outline" />
                   <Input
-                    id="user-id"
-                    type="text"
-                    placeholder="Enter your user ID"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value.toUpperCase())}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
                     className="h-14 w-full rounded-lg border-border bg-surface-container-low pl-12 pr-4 text-body-md text-foreground placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
