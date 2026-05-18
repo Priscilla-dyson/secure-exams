@@ -1,0 +1,251 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+enum ExamStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  SHORT_ANSWER
+  ESSAY
+  MATH
+  DRAWING
+}
+
+enum ExamAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  name              String
+  role              Role     @default(STUDENT)
+  registrationNumber String?  @unique
+  employeeId        String?  @unique
+  department        String?
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  createdExams      Exam[]   @relation("ExamCreator")
+  examAttempts      ExamAttempt[]
+  studentAnswers    StudentAnswer[]
+  announcements     Announcement[]
+  lecturedModules   Module[] @relation("ModuleLecturer")
+  results           Result[]
+  enrollments       Enrollment[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  department  String
+  lecturerId  String?
+  lecturer    User?    @relation("ModuleLecturer", fields: [lecturerId], references: [id])
+  studentCount Int     @default(0)
+  semester    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  exams       Exam[]
+  enrollments Enrollment[]
+
+  @@index([code])
+}
+
+model Exam {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  type            String        @default("midterm")
+  moduleId        String
+  module          Module        @relation(fields: [moduleId], references: [id])
+  creatorId       String
+  creator         User          @relation("ExamCreator", fields: [creatorId], references: [id])
+  duration        Int           // in minutes
+  totalMarks      Int           @default(100)
+  passingMarks    Int           @default(40)
+  scheduledDate   DateTime?
+  scheduledTime   String?
+  endDate         DateTime?
+  endTime         String?
+  status          ExamStatus    @default(DRAFT)
+  published       Boolean       @default(false)
+  showResults     Boolean       @default(true)
+  allowLateSubmission Boolean @default(false)
+  accessCode      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  questions       Question[]
+  examAttempts    ExamAttempt[]
+  results         Result[]
+
+  @@index([moduleId])
+  @@index([creatorId])
+  @@index([status])
+}
+
+model Question {
+  id          String        @id @default(cuid())
+  examId      String
+  exam        Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type        QuestionType
+  text        String
+  instructions String?
+  imageUrl     String?
+  marks       Int           @default(1)
+  order       Int
+  correctAnswer String?
+  mathAnswer  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  options     QuestionOption[]
+  answers     StudentAnswer[]
+
+  @@index([examId])
+}
+
+model QuestionOption {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text        String
+  isCorrect   Boolean  @default(false)
+  order       Int
+
+  @@index([questionId])
+}
+
+model ExamAttempt {
+  id          String            @id @default(cuid())
+  examId      String
+  exam        Exam              @relation(fields: [examId], references: [id])
+  studentId   String
+  student     User              @relation(fields: [studentId], references: [id])
+  status      ExamAttemptStatus @default(IN_PROGRESS)
+  startedAt   DateTime          @default(now())
+  submittedAt DateTime?
+  score       Int?
+  totalMarks  Int?
+  tabSwitchCount Int @default(0)
+  fullscreenViolations Int @default(0)
+  faceDetectionWarnings Int @default(0)
+  suspiciousActivity Boolean @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  answers     StudentAnswer[]
+  result      Result?
+
+  @@index([examId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model StudentAnswer {
+  id          String      @id @default(cuid())
+  attemptId   String
+  attempt     ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    Question    @relation(fields: [questionId], references: [id])
+  studentId   String
+  student     User        @relation(fields: [studentId], references: [id])
+  answer      String?
+  selectedOptionId String?
+  drawingImage String?
+  marks       Int?
+  isCorrect   Boolean?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([attemptId])
+  @@index([questionId])
+  @@index([studentId])
+}
+
+model Result {
+  id          String      @id @default(cuid())
+  attemptId   String      @unique
+  attempt     ExamAttempt @relation(fields: [attemptId], references: [id])
+  studentId   String
+  student     User        @relation(fields: [studentId], references: [id])
+  examId      String
+  exam        Exam        @relation(fields: [examId], references: [id])
+  score       Int
+  totalMarks  Int
+  percentage  Float
+  grade       String?
+  published   Boolean     @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([studentId])
+  @@index([examId])
+  @@index([published])
+}
+
+model Announcement {
+  id              String   @id @default(cuid())
+  title           String
+  content         String
+  type            String   @default("general")
+  priority        String   @default("normal")
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+  targetAudience  String   @default("all")
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([authorId])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  moduleId   String
+  createdAt  DateTime @default(now())
+
+  student User @relation(fields: [studentId], references: [id])
+  module  Module @relation(fields: [moduleId], references: [id])
+
+  @@unique([studentId, moduleId])
+  @@index([studentId])
+  @@index([moduleId])
+}
