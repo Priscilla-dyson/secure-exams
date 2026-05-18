@@ -46,8 +46,10 @@ model User {
   role              Role     @default(STUDENT)
   registrationNumber String?  @unique
   employeeId        String?  @unique
-  department        String?
+  classId           String?
+  class             Class?   @relation(fields: [classId], references: [id])
   status            String   @default("active")
+  mustChangePassword Boolean @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -58,17 +60,36 @@ model User {
   announcements     Announcement[]
   lecturedModules   Module[] @relation("ModuleLecturer")
   results           Result[]
-  enrollments       Enrollment[]
 
   @@index([email])
   @@index([role])
+  @@index([classId])
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  year        Int
+  program     String
+  studentCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  students    User[]
+  modules     Module[]
+
+  @@index([code])
+  @@index([program])
 }
 
 model Module {
   id          String   @id @default(cuid())
   code        String   @unique
   name        String
-  department  String
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
   lecturerId  String?
   lecturer    User?    @relation("ModuleLecturer", fields: [lecturerId], references: [id])
   studentCount Int     @default(0)
@@ -78,9 +99,9 @@ model Module {
 
   // Relations
   exams       Exam[]
-  enrollments Enrollment[]
 
   @@index([code])
+  @@index([classId])
 }
 
 model Exam {
@@ -234,18 +255,4 @@ model Announcement {
   updatedAt       DateTime @updatedAt
 
   @@index([authorId])
-}
-
-model Enrollment {
-  id         String   @id @default(cuid())
-  studentId  String
-  moduleId   String
-  createdAt  DateTime @default(now())
-
-  student User @relation(fields: [studentId], references: [id])
-  module  Module @relation(fields: [moduleId], references: [id])
-
-  @@unique([studentId, moduleId])
-  @@index([studentId])
-  @@index([moduleId])
 }
