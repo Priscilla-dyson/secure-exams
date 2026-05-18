@@ -1,5 +1,7 @@
+'use client'
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Metadata } from "next";
 import {
   CalendarDays,
   CheckCircle2,
@@ -11,22 +13,54 @@ import {
   ChevronRight,
   Megaphone,
   Award,
+  Clock,
 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Dashboard — Student · SWEARS",
-  description: "Student dashboard with upcoming, active, completed, missed exams and notifications."
-};
-
 export default function StudentDashboard() {
-  const upcomingCount = 0
-  const activeCount = 0
-  const completedCount = 0
-  const missedCount = 0
+  const [exams, setExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const activeExams: any[] = []
-  const upcomingExams: any[] = []
-  const completedExams: any[] = []
+  useEffect(() => {
+    fetchExams();
+  }, []);
+
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/student/exams');
+      const data = await response.json();
+      if (data.success) {
+        setExams(data.exams);
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const upcomingCount = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) > new Date()).length;
+  const activeCount = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) <= new Date() && new Date(e.endDate) > new Date()).length;
+  const completedCount = exams.filter(e => e.hasAttempted).length;
+  const missedCount = 0; // Will be calculated based on end date
+
+  const activeExams = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) <= new Date() && new Date(e.endDate) > new Date());
+  const upcomingExams = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) > new Date());
+  const completedExams = exams.filter(e => e.hasAttempted);
+
+  const getCountdown = (date: string) => {
+    const diff = new Date(date).getTime() - new Date().getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -49,10 +83,10 @@ export default function StudentDashboard() {
             {activeExams.map((exam) => (
               <ActiveCard
                 key={exam.id}
-                module={exam.module}
+                module={exam.module?.name || 'Unknown Module'}
                 type={exam.type}
-                endsIn={exam.endsIn}
-                examId={exam.examId}
+                endsIn={getCountdown(exam.endDate)}
+                examId={exam.id}
                 status={exam.status}
               />
             ))}
@@ -71,11 +105,11 @@ export default function StudentDashboard() {
             {upcomingExams.map((exam) => (
               <UpcomingRow
                 key={exam.id}
-                module={exam.module}
+                module={exam.module?.name || 'Unknown Module'}
                 type={exam.type}
-                date={exam.date}
-                duration={exam.duration}
-                countdown={exam.countdown}
+                date={new Date(exam.scheduledDate).toLocaleDateString()}
+                duration={`${exam.duration} min`}
+                countdown={getCountdown(exam.scheduledDate)}
               />
             ))}
           </ul>
@@ -96,7 +130,7 @@ export default function StudentDashboard() {
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border bg-card">
               {completedExams.map((exam) => (
-                <CompletedRow key={exam.id} module={exam.module} date={exam.date} status={exam.status} />
+                <CompletedRow key={exam.id} module={exam.module?.name || 'Unknown Module'} date={new Date(exam.scheduledDate).toLocaleDateString()} status={exam.attemptStatus || 'Submitted'} />
               ))}
             </ul>
           )}
@@ -104,14 +138,14 @@ export default function StudentDashboard() {
 
         {/* Missed */}
         <Section title="Missed Exams" caption="Marked absent">
-          {completedExams.filter((e: any) => e.status === 'missed').length === 0 ? (
+          {completedExams.filter((e: any) => e.attemptStatus === 'missed').length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">No missed exams</p>
             </div>
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border bg-card">
-              {completedExams.filter((e: any) => e.status === 'missed').map((exam) => (
-                <MissedRow key={exam.id} module={exam.module} date={exam.date} reason={exam.reason} />
+              {completedExams.filter((e: any) => e.attemptStatus === 'missed').map((exam) => (
+                <MissedRow key={exam.id} module={exam.module?.name || 'Unknown Module'} date={new Date(exam.scheduledDate).toLocaleDateString()} reason="Did not attend" />
               ))}
             </ul>
           )}

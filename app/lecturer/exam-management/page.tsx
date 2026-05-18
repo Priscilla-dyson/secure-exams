@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -61,18 +61,22 @@ interface Question {
 }
 
 interface Exam {
-  id: number
+  id: string
   title: string
-  module: string
-  moduleCode: string
+  module: { name: string; code: string }
   type: string
-  date: string
-  time: string
-  duration: string
-  status: 'draft' | 'scheduled' | 'active' | 'completed'
-  students: number
+  scheduledDate: string
+  scheduledTime: string
+  endDate: string
+  endTime: string
+  duration: number
+  status: 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'COMPLETED'
+  published: boolean
   totalMarks: number
-  passingMarks?: number
+  passingMarks: number
+  _count?: {
+    examAttempts: number
+  }
 }
 
 
@@ -105,13 +109,32 @@ export default function ExamManagementPage() {
   })
   const [showQuestionBankDialog, setShowQuestionBankDialog] = useState(false)
   const [selectedBankQuestions, setSelectedBankQuestions] = useState<Set<number>>(new Set())
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchExams()
+  }, [])
+
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/exams');
+      const data = await response.json();
+      if (data.success) {
+        setExams(data.exams);
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'draft': return { label: 'Draft', color: 'bg-muted text-muted-foreground', icon: FileText }
-      case 'scheduled': return { label: 'Scheduled', color: 'bg-primary/10 text-primary', icon: Calendar }
-      case 'active': return { label: 'Active', color: 'bg-[color:var(--success)]/10 text-[color:var(--success)]', icon: PlayCircle }
-      case 'completed': return { label: 'Completed', color: 'bg-muted text-muted-foreground', icon: Archive }
+      case 'DRAFT': return { label: 'Draft', color: 'bg-muted text-muted-foreground', icon: FileText }
+      case 'SCHEDULED': return { label: 'Scheduled', color: 'bg-primary/10 text-primary', icon: Calendar }
+      case 'ACTIVE': return { label: 'Active', color: 'bg-[color:var(--success)]/10 text-[color:var(--success)]', icon: PlayCircle }
+      case 'COMPLETED': return { label: 'Completed', color: 'bg-muted text-muted-foreground', icon: Archive }
       default: return { label: status, color: 'bg-muted text-muted-foreground', icon: FileText }
     }
   }
@@ -129,13 +152,22 @@ export default function ExamManagementPage() {
   }
 
   const handleDuplicateExam = (exam: Exam) => {
-    const newExam = { ...exam, id: Date.now(), title: `${exam.title} (Copy)`, status: 'draft' as const, students: 0 }
-    setExams([newExam, ...exams])
+    // This would need to be implemented with backend API
+    console.log('Duplicate exam:', exam)
   }
 
-  const handleDeleteExam = (id: number) => {
+  const handleDeleteExam = async (id: string) => {
     if (confirm('Are you sure you want to delete this exam?')) {
-      setExams(exams.filter(e => e.id !== id))
+      try {
+        const response = await fetch(`/api/exams/${id}`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          setExams(exams.filter(e => e.id !== id));
+        }
+      } catch (error) {
+        console.error('Error deleting exam:', error);
+      }
     }
   }
 
@@ -145,11 +177,21 @@ export default function ExamManagementPage() {
   }
 
   const sections = [
-    { title: 'Draft Exams', icon: FileText, status: 'draft' as const, action: 'Continue Editing' },
-    { title: 'Scheduled Exams', icon: Calendar, status: 'scheduled' as const, action: 'View Details' },
-    { title: 'Active Exams', icon: PlayCircle, status: 'active' as const, action: 'Monitor Exam' },
-    { title: 'Completed Exams', icon: Archive, status: 'completed' as const, action: 'View Results' },
+    { title: 'Draft Exams', icon: FileText, status: 'DRAFT' as const, action: 'Continue Editing' },
+    { title: 'Scheduled Exams', icon: Calendar, status: 'SCHEDULED' as const, action: 'View Details' },
+    { title: 'Active Exams', icon: PlayCircle, status: 'ACTIVE' as const, action: 'Monitor Exam' },
+    { title: 'Completed Exams', icon: Archive, status: 'COMPLETED' as const, action: 'View Results' },
   ]
+
+  if (loading) {
+    return (
+      <SidebarLayout userRole="lecturer">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </SidebarLayout>
+    )
+  }
 
   return (
     <SidebarLayout userRole="lecturer">
@@ -194,7 +236,8 @@ export default function ExamManagementPage() {
                                 <h3 className="text-lg font-semibold text-foreground">{exam.title}</h3>
                                 <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">{exam.moduleCode} • {exam.module}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(exam.scheduledDate).toLocaleDateString()}</p>
+                              <p className="text-sm text-muted-foreground">{exam.module?.code} • {exam.module?.name}</p>
                             </div>
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" onClick={() => handleEditExam(exam)} className="h-8 w-8 p-0">
@@ -203,7 +246,7 @@ export default function ExamManagementPage() {
                               <Button variant="ghost" size="sm" onClick={() => handleDuplicateExam(exam)} className="h-8 w-8 p-0">
                                 <Copy className="w-4 h-4" />
                               </Button>
-                              {exam.status === 'draft' && (
+                              {exam.status === 'DRAFT' && (
                                 <Button variant="ghost" size="sm" onClick={() => handleDeleteExam(exam.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700">
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -218,7 +261,7 @@ export default function ExamManagementPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm text-foreground">{exam.date}</span>
+                              <span className="text-sm text-foreground">{new Date(exam.scheduledDate).toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4 text-muted-foreground" />
@@ -226,7 +269,7 @@ export default function ExamManagementPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Users className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm text-foreground">{exam.students} students</span>
+                              <span className="text-sm text-foreground">{exam._count?.examAttempts || 0} students</span>
                             </div>
                           </div>
                           

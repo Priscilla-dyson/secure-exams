@@ -26,19 +26,7 @@ export default function LecturerDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const stats = {
-    totalModules: 0,
-    totalExams: 0,
-    pendingGrading: 0,
-    resultsReleased: 0
-  }
-
-  const upcomingExams: any[] = []
-  const activeExams: any[] = []
-  const draftExams: any[] = []
-  const completedExams: any[] = []
-  const notifications: any[] = []
+  const [exams, setExams] = useState<any[]>([])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -49,8 +37,35 @@ export default function LecturerDashboard() {
       }
       setUser(JSON.parse(currentUser))
     }
+    fetchExams()
     setIsLoading(false)
   }, [router])
+
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/exams');
+      const data = await response.json();
+      if (data.success) {
+        setExams(data.exams);
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    }
+  };
+
+  const stats = {
+    totalModules: 0,
+    totalExams: exams.length,
+    pendingGrading: exams.filter(e => e.status === 'COMPLETED').length,
+    resultsReleased: exams.filter(e => e.published).length
+  }
+
+  const now = new Date();
+  const upcomingExams = exams.filter(e => e.status === 'SCHEDULED' && new Date(e.scheduledDate) > now);
+  const activeExams = exams.filter(e => e.status === 'ACTIVE' || (e.status === 'SCHEDULED' && new Date(e.scheduledDate) <= now && new Date(e.endDate) > now));
+  const draftExams = exams.filter(e => e.status === 'DRAFT');
+  const completedExams = exams.filter(e => e.status === 'COMPLETED');
+  const notifications: any[] = []
 
   if (isLoading || !user) {
     return (
@@ -134,12 +149,12 @@ export default function LecturerDashboard() {
                       <Calendar className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{exam.module}</p>
+                      <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown Module'}</p>
                       <p className="text-xs text-muted-foreground">{exam.type}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-foreground">{exam.date}</p>
-                      <p className="text-xs text-muted-foreground">{exam.time}</p>
+                      <p className="text-sm font-medium text-foreground">{new Date(exam.scheduledDate).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{exam.scheduledTime}</p>
                     </div>
                   </div>
                 ))
@@ -169,9 +184,9 @@ export default function LecturerDashboard() {
                       <span className="text-xs font-medium text-success">LIVE</span>
                       <span className="text-xs text-muted-foreground">{exam.endTime}</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">{exam.module}</p>
+                    <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown Module'}</p>
                     <p className="text-xs text-muted-foreground">{exam.type}</p>
-                    <p className="text-xs text-muted-foreground mt-2">{exam.activeStudents} students</p>
+                    <p className="text-xs text-muted-foreground mt-2">{exam._count?.examAttempts || 0} students</p>
                   </div>
                 ))
               )}
