@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -31,15 +31,49 @@ import {
 import { SidebarLayout } from '@/components/sidebar-layout'
 
 export default function ResultsPage() {
-  const [selectedExam, setSelectedExam] = useState('advanced-algorithms')
+  const [selectedExam, setSelectedExam] = useState<string>('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [resultStatus, setResultStatus] = useState<'hidden' | 'published'>('hidden')
+  const [exams, setExams] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const examData: any = {}
+  useEffect(() => {
+    fetchExams()
+  }, [])
 
-  const currentExam = examData[selectedExam as keyof typeof examData]
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/exams')
+      const data = await response.json()
+      if (data.success) {
+        setExams(data.exams)
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  if (!currentExam) {
+  const currentExam = exams.find(e => e.id === selectedExam)
+
+  if (loading) {
+    return (
+      <SidebarLayout userRole="lecturer">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">Loading exam results...</p>
+          </div>
+        </div>
+      </SidebarLayout>
+    )
+  }
+
+  if (!currentExam && exams.length > 0) {
+    setSelectedExam(exams[0].id)
+  }
+
+  if (exams.length === 0) {
     return (
       <SidebarLayout userRole="lecturer">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -215,7 +249,7 @@ export default function ResultsPage() {
                     </td>
                   </tr>
                 ) : (
-                  currentExam.students.map((student) => (
+                  currentExam.students.map((student: any) => (
                     <tr key={student.id} className="hover:bg-accent/50">
                       <td className="px-4 py-4">
                         <div>

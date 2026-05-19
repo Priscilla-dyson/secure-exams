@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react'
 import {
   Users,
   UserCheck,
@@ -22,19 +23,91 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const statsCards: any[] = []
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalLecturers: 0,
+    totalClasses: 0,
+    totalModules: 0,
+    totalExams: 0,
+    activeExams: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      // Fetch users count
+      const usersResponse = await fetch('/api/users')
+      const usersData = await usersResponse.json()
+      
+      if (usersData.success) {
+        const students = usersData.users.filter((u: any) => u.role === 'STUDENT')
+        const lecturers = usersData.users.filter((u: any) => u.role === 'LECTURER')
+        
+        // Fetch classes count
+        const classesResponse = await fetch('/api/classes')
+        const classesData = await classesResponse.json()
+        
+        // Fetch modules count
+        const modulesResponse = await fetch('/api/modules')
+        const modulesData = await modulesResponse.json()
+        
+        // Fetch exams count
+        const examsResponse = await fetch('/api/exams')
+        const examsData = await examsResponse.json()
+        
+        setStats({
+          totalStudents: students.length,
+          totalLecturers: lecturers.length,
+          totalClasses: classesData.classes?.length || 0,
+          totalModules: modulesData.modules?.length || 0,
+          totalExams: examsData.exams?.length || 0,
+          activeExams: examsData.exams?.filter((e: any) => e.status === 'ACTIVE').length || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statsCards = [
+    { label: 'Total Students', value: stats.totalStudents, icon: Users, change: 'Active users' },
+    { label: 'Total Lecturers', value: stats.totalLecturers, icon: UserCheck, change: 'Faculty members' },
+    { label: 'Total Classes', value: stats.totalClasses, icon: Building2, change: 'Program groups' },
+    { label: 'Total Modules', value: stats.totalModules, icon: BookOpen, change: 'Course modules' },
+    { label: 'Total Exams', value: stats.totalExams, icon: FileText, change: 'All exams' },
+    { label: 'Active Exams', value: stats.activeExams, icon: Clock, change: 'Currently running' },
+  ]
 
   const recentActivities: any[] = []
 
-  const quickActions: any[] = []
+  const quickActions = [
+    { label: 'Add Student', icon: UserPlus, href: '/admin/users' },
+    { label: 'Add Lecturer', icon: UserCheck, href: '/admin/users' },
+    { label: 'Create Class', icon: Building2, href: '/admin/academic' },
+    { label: 'Create Module', icon: BookOpen, href: '/admin/academic' },
+  ]
 
-  const systemStatus: any[] = []
+  const systemStatus = [
+    { label: 'Database', icon: Database, status: 'Connected', color: 'text-green-600' },
+    { label: 'Server', icon: Server, status: 'Running', color: 'text-green-600' },
+    { label: 'API', icon: Shield, status: 'Active', color: 'text-green-600' },
+  ]
 
   return (
     <div className="space-y-8">
       {/* Stats Grid */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {statsCards.length === 0 ? (
+        {loading ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-sm text-muted-foreground">Loading statistics...</p>
+          </div>
+        ) : statsCards.length === 0 ? (
           <div className="col-span-full text-center py-8">
             <p className="text-sm text-muted-foreground">No statistics available</p>
           </div>

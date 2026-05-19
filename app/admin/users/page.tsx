@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -17,7 +17,7 @@ import {
   Filter
 } from 'lucide-react'
 
-type UserRole = 'student' | 'lecturer' | 'admin'
+type UserRole = 'STUDENT' | 'LECTURER' | 'ADMIN'
 type UserStatus = 'active' | 'inactive' | 'suspended'
 
 interface User {
@@ -25,18 +25,39 @@ interface User {
   name: string;
   email: string;
   role: UserRole;
-  department: string;
   status: UserStatus;
   registrationNumber?: string;
   employeeId?: string;
+  class?: {
+    name: string;
+  };
 }
 
 export default function UserManagement() {
-  const [activeTab, setActiveTab] = useState<UserRole>('student');
+  const [activeTab, setActiveTab] = useState<UserRole>('STUDENT');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserStatus | 'all'>('all');
   const [showAddUser, setShowAddUser] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+      if (data.success) {
+        setUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddUser = () => {
     setShowAddUser(true);
@@ -206,7 +227,7 @@ export default function UserManagement() {
                       {user.registrationNumber || user.employeeId || '-'}
                     </td>
                     <td className="px-4 py-4 text-sm text-foreground">{user.email}</td>
-                    <td className="px-4 py-4 text-sm text-foreground">{user.department}</td>
+                    <td className="px-4 py-4 text-sm text-foreground">{user.class?.name || '-'}</td>
                     <td className="px-4 py-4">{getStatusBadge(user.status)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1">

@@ -25,7 +25,7 @@ import { useAntiCheat } from "@/hooks/useAntiCheat";
 import { AntiCheatWarning } from "@/components/anti-cheat-warning";
 
 type Stage = "readiness" | "active" | "submitted";
-type QType = "mcq" | "short" | "essay" | "math";
+type QType = "mcq" | "short" | "essay" | "math" | "drawing";
 
 interface Question {
   id: string;
@@ -215,6 +215,9 @@ function ActiveExam({ questions, examInfo, onSubmit }: { questions: Question[]; 
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [secondsLeft, setSecondsLeft] = useState(examInfo.duration * 60);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [drawingTool, setDrawingTool] = useState<'pen' | 'eraser'>('pen');
+  const [drawingColor, setDrawingColor] = useState('#000000');
+  const [brushSize, setBrushSize] = useState(2);
 
   // Anti-cheat integration
   const {
@@ -360,13 +363,234 @@ function ActiveExam({ questions, examInfo, onSubmit }: { questions: Question[]; 
                 />
               )}
               {q.type === "math" && (
-                <textarea
-                  value={(answers[q.id] as string) || ""}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  rows={6}
-                  placeholder="Show your working… use $...$ for LaTeX"
-                  className="w-full rounded-md border border-border bg-background px-4 py-3 font-mono text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
+                <div className="space-y-4">
+                  <textarea
+                    value={(answers[q.id] as string) || ""}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    rows={6}
+                    placeholder="Show your working… use $...$ for LaTeX (e.g., $x = 5$)"
+                    className="w-full rounded-md border border-border bg-background px-4 py-3 font-mono text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+                        const start = textarea.selectionStart
+                        const end = textarea.selectionEnd
+                        const text = textarea.value
+                        const before = text.substring(0, start)
+                        const after = text.substring(end)
+                        textarea.value = before + '$' + after
+                        textarea.focus()
+                        textarea.selectionStart = textarea.selectionEnd = start + 1
+                        setAnswer(textarea.value)
+                      }}
+                      className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-accent text-foreground"
+                    >
+                      $...$ (LaTeX)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+                        const start = textarea.selectionStart
+                        const end = textarea.selectionEnd
+                        const text = textarea.value
+                        const before = text.substring(0, start)
+                        const after = text.substring(end)
+                        textarea.value = before + '\\frac{}{}' + after
+                        textarea.focus()
+                        textarea.selectionStart = textarea.selectionEnd = start + 6
+                        setAnswer(textarea.value)
+                      }}
+                      className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-accent text-foreground"
+                    >
+                      Fraction
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+                        const start = textarea.selectionStart
+                        const end = textarea.selectionEnd
+                        const text = textarea.value
+                        const before = text.substring(0, start)
+                        const after = text.substring(end)
+                        textarea.value = before + '\\sqrt{}' + after
+                        textarea.focus()
+                        textarea.selectionStart = textarea.selectionEnd = start + 6
+                        setAnswer(textarea.value)
+                      }}
+                      className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-accent text-foreground"
+                    >
+                      √
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+                        const start = textarea.selectionStart
+                        const end = textarea.selectionEnd
+                        const text = textarea.value
+                        const before = text.substring(0, start)
+                        const after = text.substring(end)
+                        textarea.value = before + '^{}' + after
+                        textarea.focus()
+                        textarea.selectionStart = textarea.selectionEnd = start + 2
+                        setAnswer(textarea.value)
+                      }}
+                      className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-accent text-foreground"
+                    >
+                      Superscript
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+                        const start = textarea.selectionStart
+                        const end = textarea.selectionEnd
+                        const text = textarea.value
+                        const before = text.substring(0, start)
+                        const after = text.substring(end)
+                        textarea.value = before + '_{}' + after
+                        textarea.focus()
+                        textarea.selectionStart = textarea.selectionEnd = start + 2
+                        setAnswer(textarea.value)
+                      }}
+                      className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-accent text-foreground"
+                    >
+                      Subscript
+                    </button>
+                  </div>
+                </div>
+              )}
+              {q.type === "drawing" && (
+                <div className="space-y-4">
+                  <div className="border border-border rounded-lg bg-card">
+                    <div className="flex items-center justify-between p-3 border-b border-border bg-muted">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDrawingTool('pen')
+                          }}
+                          className={`p-2 rounded-md transition ${
+                            drawingTool === 'pen' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent text-foreground'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDrawingTool('eraser')
+                          }}
+                          className={`p-2 rounded-md transition ${
+                            drawingTool === 'eraser' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent text-foreground'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                        <div className="w-px h-6 bg-border mx-2" />
+                        <input
+                          type="color"
+                          value={drawingColor}
+                          onChange={(e) => setDrawingColor(e.target.value)}
+                          className="w-8 h-8 rounded cursor-pointer border-0"
+                        />
+                        <input
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={brushSize}
+                          onChange={(e) => setBrushSize(Number(e.target.value))}
+                          className="w-20"
+                        />
+                        <span className="text-xs text-muted-foreground">{brushSize}px</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const canvas = document.getElementById(`canvas-${q.id}`) as HTMLCanvasElement
+                          const ctx = canvas.getContext('2d')
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height)
+                            setAnswer('')
+                          }
+                        }}
+                        className="px-3 py-1 text-xs rounded-md border border-border bg-background hover:bg-destructive hover:text-destructive-foreground text-foreground transition"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <canvas
+                      id={`canvas-${q.id}`}
+                      ref={(canvas) => {
+                        if (canvas && !canvas.hasAttribute('data-initialized')) {
+                          canvas.setAttribute('data-initialized', 'true')
+                          const ctx = canvas.getContext('2d')
+                          if (ctx) {
+                            canvas.width = canvas.offsetWidth
+                            canvas.height = 400
+                            ctx.lineCap = 'round'
+                            ctx.lineJoin = 'round'
+                            
+                            let isDrawing = false
+                            let lastX = 0
+                            let lastY = 0
+
+                            const startDrawing = (e: MouseEvent | TouchEvent) => {
+                              isDrawing = true
+                              const rect = canvas.getBoundingClientRect()
+                              const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
+                              const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+                              lastX = x
+                              lastY = y
+                            }
+
+                            const draw = (e: MouseEvent | TouchEvent) => {
+                              if (!isDrawing) return
+                              e.preventDefault()
+                              const rect = canvas.getBoundingClientRect()
+                              const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
+                              const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+                              
+                              ctx.beginPath()
+                              ctx.moveTo(lastX, lastY)
+                              ctx.lineTo(x, y)
+                              ctx.strokeStyle = drawingTool === 'eraser' ? '#ffffff' : drawingColor
+                              ctx.lineWidth = drawingTool === 'eraser' ? brushSize * 2 : brushSize
+                              ctx.stroke()
+                              
+                              lastX = x
+                              lastY = y
+                            }
+
+                            const stopDrawing = () => {
+                              isDrawing = false
+                              setAnswer(canvas.toDataURL('image/png'))
+                            }
+
+                            canvas.addEventListener('mousedown', startDrawing)
+                            canvas.addEventListener('mousemove', draw)
+                            canvas.addEventListener('mouseup', stopDrawing)
+                            canvas.addEventListener('mouseout', stopDrawing)
+                            canvas.addEventListener('touchstart', startDrawing)
+                            canvas.addEventListener('touchmove', draw)
+                            canvas.addEventListener('touchend', stopDrawing)
+                          }
+                        }
+                      }}
+                      className="w-full cursor-crosshair"
+                      style={{ height: '400px' }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 

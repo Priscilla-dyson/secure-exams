@@ -1,24 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, KeyRound, Save, ShieldCheck, User } from "lucide-react";
 
 export default function StudentProfile() {
   const [tab, setTab] = useState<"personal" | "password" | "notifications">("personal");
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const currentUser = localStorage.getItem('currentUser');
+        if (currentUser) {
+          setUser(JSON.parse(currentUser));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6 sm:p-8">
         <div className="flex items-center gap-4 rounded-md border border-border bg-card p-5">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-            --
+            {user?.name?.charAt(0) || '--'}
           </div>
           <div>
-            <p className="text-base font-semibold text-foreground">Student Name</p>
+            <p className="text-base font-semibold text-foreground">{user?.name || 'Loading...'}</p>
             <p className="text-xs text-muted-foreground">
-              Student ID · Programme
+              {user?.registrationNumber || 'N/A'} · {user?.class?.name || 'N/A'}
             </p>
           </div>
-          <span className="ml-auto inline-flex items-center gap-1 rounded bg-[color:var(--success)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--success)]">
+          <span className="ml-auto inline-flex items-center gap-1 rounded bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-600">
             <ShieldCheck className="h-3.5 w-3.5" /> Verified
           </span>
         </div>
