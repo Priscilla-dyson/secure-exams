@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { loginUser, generateToken } from '@/lib/auth'
+import { loginByUserId, generateToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password } = body
+    const { userId, password } = body
 
-    if (!email || !password) {
+    if (!userId || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'User ID and password are required' },
         { status: 400 }
       )
     }
 
-    const user = await loginUser(email, password)
+    const user = await loginByUserId(userId, password)
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid user ID or password' },
         { status: 401 }
       )
     }

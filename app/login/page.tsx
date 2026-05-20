@@ -12,7 +12,7 @@ import { getDashboardRoute } from '@/lib/auth'
 import { Shield, User, Lock, Eye, EyeOff, ArrowRight, GraduationCap, BookOpen, Award } from 'lucide-react'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -25,8 +25,8 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
-    if (!email.trim()) {
-      setError('Please enter your email')
+    if (!userId.trim()) {
+      setError('Please enter your user ID')
       setIsLoading(false)
       return
     }
@@ -43,7 +43,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ userId, password })
       })
 
       const data = await response.json()
@@ -133,19 +133,19 @@ export default function LoginPage() {
 
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-6">
-              {/* Email Field */}
+              {/* User ID Field */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-label-caps text-onSurface-variant">
-                  Email
+                <Label htmlFor="userId" className="text-label-caps text-onSurface-variant">
+                  User ID
                 </Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-outline" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="userId"
+                    type="text"
+                    placeholder="Enter your user ID"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
                     disabled={isLoading}
                     className="h-14 w-full rounded-lg border-border bg-surface-container-low pl-12 pr-4 text-body-md text-foreground placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />

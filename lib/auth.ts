@@ -64,6 +64,29 @@ export const loginUser = async (email: string, password: string): Promise<AuthUs
   }
 }
 
+// Login with user ID and password
+export const loginByUserId = async (userId: string, password: string): Promise<AuthUser | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  })
+
+  if (!user) {
+    return null
+  }
+
+  const isValid = await verifyPassword(password, user.password)
+  if (!isValid) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  }
+}
+
 // Get user by ID
 export const getUserById = async (userId: string): Promise<AuthUser | null> => {
   const user = await prisma.user.findUnique({

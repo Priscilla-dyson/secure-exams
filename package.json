@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "seed": "tsx prisma/seed.ts"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@next/swc-win32-x64-msvc": "^16.2.4",

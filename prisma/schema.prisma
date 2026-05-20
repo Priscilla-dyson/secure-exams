@@ -40,10 +40,11 @@ enum ExamAttemptStatus {
 
 model User {
   id                String   @id @default(cuid())
-  email             String   @unique
+  email             String?
   password          String
   name              String
   role              Role     @default(STUDENT)
+  userId            String   @unique
   registrationNumber String?  @unique
   employeeId        String?  @unique
   classId           String?
@@ -61,7 +62,7 @@ model User {
   lecturedModules   Module[] @relation("ModuleLecturer")
   results           Result[]
 
-  @@index([email])
+  @@index([userId])
   @@index([role])
   @@index([classId])
 }
