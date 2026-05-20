@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
         role: true,
         registrationNumber: true,
         employeeId: true,
-        department: true,
         status: true,
         createdAt: true
       },
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, password, name, role, registrationNumber, employeeId, department } = body
+    const { email, password, name, role, registrationNumber, employeeId } = body
 
     if (!email || !password || !name || !role) {
       return NextResponse.json(
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: { email }
     })
 
@@ -71,16 +70,19 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
+    // Generate a unique userId (required by Prisma schema)
+    const userId = `u_${Date.now().toString(36)}${Math.random().toString(36).slice(2,8)}`
+
     // Create user
     const newUser = await prisma.user.create({
       data: {
+        userId,
         email,
         password: hashedPassword,
         name,
         role: role.toUpperCase(),
         registrationNumber: registrationNumber || null,
-        employeeId: employeeId || null,
-        department: department || null
+        employeeId: employeeId || null
       },
       select: {
         id: true,
@@ -89,7 +91,6 @@ export async function POST(request: NextRequest) {
         role: true,
         registrationNumber: true,
         employeeId: true,
-        department: true,
         status: true,
         createdAt: true
       }

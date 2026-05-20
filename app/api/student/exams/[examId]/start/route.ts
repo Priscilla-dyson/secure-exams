@@ -5,8 +5,9 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // POST /api/student/exams/[examId]/start - Start an exam attempt
 export async function POST(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authorize(request, ['STUDENT'])
 

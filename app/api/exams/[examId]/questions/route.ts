@@ -5,8 +5,9 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // GET /api/exams/[examId]/questions - Get all questions for an exam
 export async function GET(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authenticate(request)
 
@@ -53,8 +54,9 @@ export async function GET(
 // POST /api/exams/[examId]/questions - Add a question to an exam (Lecturer only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
 

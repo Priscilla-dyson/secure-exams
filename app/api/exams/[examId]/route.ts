@@ -5,8 +5,9 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // GET /api/exams/[examId] - Get a specific exam
 export async function GET(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authenticate(request)
 
@@ -75,8 +76,9 @@ export async function GET(
 // PUT /api/exams/[examId] - Update an exam
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authenticate(request)
 
@@ -142,8 +144,9 @@ export async function PUT(
 // DELETE /api/exams/[examId] - Delete an exam
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authenticate(request)
 

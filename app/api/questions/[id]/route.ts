@@ -5,8 +5,9 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // PUT /api/questions/[id] - Update a question (Lecturer only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
 
@@ -84,8 +85,9 @@ export async function PUT(
 // DELETE /api/questions/[id] - Delete a question (Lecturer only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
 

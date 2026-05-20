@@ -44,11 +44,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { code, name, department, lecturerId, semester } = body
+    const { code, name, lecturerId, semester, classId } = body
 
-    if (!code || !name || !department) {
+    if (!code || !name || !classId) {
       return NextResponse.json(
-        { error: 'Code, name, and department are required' },
+        { error: 'Code and name are required' },
         { status: 400 }
       )
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       data: {
         code,
         name,
-        department,
+        class: { connect: { id: classId } },
         lecturerId: lecturerId || null,
         semester: semester || '1'
       },

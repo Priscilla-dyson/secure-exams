@@ -5,8 +5,9 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // POST /api/results/[id]/publish - Publish a result (Lecturer only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
 

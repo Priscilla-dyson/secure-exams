@@ -12,7 +12,7 @@ export interface JWTPayload {
 
 export interface AuthUser {
   id: string
-  email: string
+  email: string | null
   name: string
   role: string
 }
@@ -43,7 +43,7 @@ export const verifyToken = (token: string): JWTPayload | null => {
 
 // Login with email and password
 export const loginUser = async (email: string, password: string): Promise<AuthUser | null> => {
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.findFirst({
     where: { email }
   })
 
