@@ -5,25 +5,20 @@ import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from
 // GET /api/exams/[examId]/questions - Get all questions for an exam
 export async function GET(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ examId: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authenticate(request)
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
+    const { examId } = await params
 
     const exam = await prisma.exam.findUnique({
-      where: { id: params.examId }
+      where: { id: examId }
     })
 
     if (!exam) {
-      return NextResponse.json(
-        { error: 'Exam not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
     // Lecturers can only view their own exam questions
@@ -32,11 +27,9 @@ export async function GET(
     }
 
     const questions = await prisma.question.findMany({
-      where: { examId: params.examId },
+      where: { examId },
       include: {
-        options: {
-          orderBy: { order: 'asc' }
-        }
+        options: { orderBy: { order: 'asc' } }
       },
       orderBy: { order: 'asc' }
     })
@@ -44,26 +37,20 @@ export async function GET(
     return NextResponse.json({ success: true, questions })
   } catch (error) {
     console.error('Get questions error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 // POST /api/exams/[examId]/questions - Add a question to an exam (Lecturer only)
 export async function POST(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ examId: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
-
+    const { examId } = await params
     const body = await request.json()
     const { type, text, marks, options } = body
 
@@ -75,14 +62,11 @@ export async function POST(
     }
 
     const exam = await prisma.exam.findUnique({
-      where: { id: params.examId }
+      where: { id: examId }
     })
 
     if (!exam) {
-      return NextResponse.json(
-        { error: 'Exam not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
     // Lecturers can only add questions to their own exams
@@ -92,12 +76,12 @@ export async function POST(
 
     // Get the next order number
     const questionCount = await prisma.question.count({
-      where: { examId: params.examId }
+      where: { examId }
     })
 
     const question = await prisma.question.create({
       data: {
-        examId: params.examId,
+        examId,
         type,
         text,
         marks: marks ? parseInt(marks) : 1,
@@ -122,18 +106,13 @@ export async function POST(
     const createdQuestion = await prisma.question.findUnique({
       where: { id: question.id },
       include: {
-        options: {
-          orderBy: { order: 'asc' }
-        }
+        options: { orderBy: { order: 'asc' } }
       }
     })
 
     return NextResponse.json({ success: true, question: createdQuestion }, { status: 201 })
   } catch (error) {
     console.error('Create question error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

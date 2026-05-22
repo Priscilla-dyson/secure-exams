@@ -47,8 +47,16 @@ model User {
   userId            String   @unique
   registrationNumber String?  @unique
   employeeId        String?  @unique
+  
+  // For students: program and year (referencing Program model)
+  programId         String?
+  program           Program? @relation(fields: [programId], references: [id])
+  year              Int?
+  
+  // Class is auto-assigned based on program+year
   classId           String?
   class             Class?   @relation(fields: [classId], references: [id])
+  
   status            String   @default("active")
   mustChangePassword Boolean @default(true)
   createdAt         DateTime @default(now())
@@ -61,18 +69,38 @@ model User {
   announcements     Announcement[]
   lecturedModules   Module[] @relation("ModuleLecturer")
   results           Result[]
+  systemLogs        SystemLog[]
 
   @@index([userId])
   @@index([role])
   @@index([classId])
+  @@index([programId])
+  @@index([year])
+}
+
+model Program {
+  id        String   @id @default(cuid())
+  name      String   @unique  // e.g. "ICT", "Nursing", "Business"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  students  User[]
+  classes   Class[]
+  modules   Module[]
+
+  @@index([name])
+  @@index([isActive])
 }
 
 model Class {
   id          String   @id @default(cuid())
-  name        String   @unique
-  code        String   @unique
-  year        Int
-  program     String
+  name        String   @unique  // Auto-generated: "ICT Year 1"
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id])
+  year        Int      // 1, 2, 3, or 4
+  isActive    Boolean  @default(true)
   studentCount Int     @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -81,28 +109,33 @@ model Class {
   students    User[]
   modules     Module[]
 
-  @@index([code])
-  @@index([program])
+  @@unique([programId, year])  // Only one class per program-year combination
+  @@index([programId])
+  @@index([year])
+  @@index([isActive])
 }
 
 model Module {
   id          String   @id @default(cuid())
-  code        String   @unique
   name        String
+  code        String   @unique
   classId     String
-  class       Class    @relation(fields: [classId], references: [id])
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id])
   lecturerId  String?
   lecturer    User?    @relation("ModuleLecturer", fields: [lecturerId], references: [id])
-  studentCount Int     @default(0)
-  semester    String
+  semester    String   @default("1")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   exams       Exam[]
 
-  @@index([code])
   @@index([classId])
+  @@index([programId])
+  @@index([lecturerId])
+  @@unique([classId, name])  // Unique module name per class
 }
 
 model Exam {
@@ -256,4 +289,20 @@ model Announcement {
   updatedAt       DateTime @updatedAt
 
   @@index([authorId])
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  type      String
+  action    String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
 }

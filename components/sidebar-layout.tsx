@@ -57,19 +57,17 @@ const lecturerNavItems = [
   { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/lecturer/exam-management', label: 'Exam Management', icon: FileText },
   { href: '/lecturer/submissions', label: 'Submissions & Grading', icon: CheckCircle },
-  { href: '/lecturer/question-bank', label: 'Question Bank', icon: BookOpen },
   { href: '/lecturer/results', label: 'Results & Reports', icon: BarChart3 },
   { href: '/lecturer/profile', label: 'Profile & Settings', icon: Settings },
 ]
 
 const adminNavItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/users', label: 'User Management', icon: Users },
-  { href: '/admin/academic-structure', label: 'Academic Structure', icon: Building2 },
+  { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/examination-oversight', label: 'Examination Oversight', icon: ClipboardList },
-  { href: '/admin/reports', label: 'Reports & Results', icon: BarChart3 },
-  { href: '/admin/support', label: 'Support & Announcements', icon: HelpCircle },
-  { href: '/admin/system-settings', label: 'System Settings', icon: Settings },
+  { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/admin/academic-structure', label: 'Academic Structure', icon: Building2 },
+  { href: '/admin/support', label: 'Support', icon: HelpCircle },
 ]
 
 // Get page title from pathname
@@ -77,22 +75,27 @@ const getPageTitle = (pathname: string, userRole: string) => {
   if (pathname.includes('/dashboard')) return 'Dashboard'
   if (pathname.includes('/exam-management')) return 'Exam Management'
   if (pathname.includes('/submissions')) return 'Submissions & Grading'
-  if (pathname.includes('/question-bank')) return 'Question Bank'
+
   if (pathname.includes('/results')) return 'Results & Reports'
   if (pathname.includes('/profile')) return 'Profile'
   if (pathname.includes('/settings')) return 'Settings'
   if (pathname.includes('/users')) return 'User Management'
   if (pathname.includes('/academic-structure')) return 'Academic Structure'
   if (pathname.includes('/examination-oversight')) return 'Examination Oversight'
-  if (pathname.includes('/support')) return 'Support & Announcements'
-  if (pathname.includes('/system-settings')) return 'System Settings'
+  if (pathname.includes('/reports')) return 'Reports & Results'
   return 'Dashboard'
 }
 
 // Get page subtitle based on role and page
 const getPageSubtitle = (pathname: string, userRole: string) => {
   if (userRole === 'student') return 'Manage your exams and view results'
-  if (userRole === 'lecturer') return 'Create exams, grade submissions, and manage courses'
+  if (userRole === 'lecturer') {
+    if (pathname.includes('/exam-management')) return 'Create and manage examinations for your modules'
+    if (pathname.includes('/submissions')) return 'Review and grade student submissions'
+    if (pathname.includes('/question-bank')) return 'Build and manage your question library'
+    if (pathname.includes('/results')) return 'View exam results and analytics'
+    return 'Create exams, grade submissions, and manage courses'
+  }
   return 'Manage users, courses, and system settings'
 }
 
@@ -169,29 +172,12 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
               <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
                 <GraduationCap className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xl font-bold text-primary tracking-tight hidden sm:inline-block">SWEARS</span>
+              <span className="text-xl font-bold text-primary tracking-tight hidden sm:inline-block">ExamSecure</span>
             </div>
           </div>
           
-          {/* Search Bar - Hidden on mobile */}
-          <div className="hidden md:flex items-center relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="h-9 w-80 rounded-md border border-border bg-surface-container-low pl-9 pr-3 text-sm text-foreground placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            />
-          </div>
-          
           <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-md text-onSurface-variant hover:bg-surface-container-high transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error"></span>
-            </button>
-            <button className="hidden sm:block p-2 rounded-md text-onSurface-variant hover:bg-surface-container-high transition-colors">
-              <HelpCircle className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-3 border-l border-border pl-4">
+            <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-foreground">{user?.name || 'User'}</p>
                 <p className="text-xs text-onSurface-variant capitalize">{userRole}</p>
@@ -219,7 +205,7 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
                 <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
                   <GraduationCap className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-lg font-bold text-primary">SWEARS</span>
+                <span className="text-lg font-bold text-primary">ExamSecure</span>
               </div>
               <button 
                 onClick={() => setSidebarOpen(false)} 
@@ -235,23 +221,6 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
                 <NavItem key={item.href} href={item.href} icon={item.icon} label={item.label} />
               ))}
             </nav>
-            
-            {/* Footer Section - Sticky at bottom */}
-            <div className="sticky bottom-0 p-4 border-t border-border bg-surface-container-lowest">
-              <div className="p-4 rounded-lg bg-surface-container">
-                <div className="flex items-center gap-3 mb-3">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <p className="text-xs font-semibold text-onSurface-variant uppercase tracking-wider">Academic Year</p>
-                </div>
-                <p className="text-sm font-medium text-foreground">2024/2025 - Semester 2</p>
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="flex items-center justify-between text-xs text-onSurface-variant">
-                    <span>Current Period:</span>
-                    <span className="font-medium">Jan - Jun 2025</span>
-                  </div>
-                </div>
-              </div>
-            </div>
             
             {/* Logout Button */}
             <div className="p-4 border-t border-border bg-surface-container-lowest">

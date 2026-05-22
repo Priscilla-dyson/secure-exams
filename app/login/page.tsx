@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { getDashboardRoute } from '@/lib/auth'
-import { Shield, User, Lock, Eye, EyeOff, ArrowRight, GraduationCap, BookOpen, Award } from 'lucide-react'
+import { Shield, User, Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react'
 
 export default function LoginPage() {
   const [userId, setUserId] = useState('')
@@ -43,6 +43,8 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json'
         },
+        // include credentials so the Set-Cookie header is processed by the browser
+        credentials: 'include',
         body: JSON.stringify({ userId, password })
       })
 
@@ -59,8 +61,13 @@ export default function LoginPage() {
         localStorage.setItem('rememberMe', JSON.stringify(rememberMe))
       }
 
-      const route = getDashboardRoute(data.user.role)
-      router.replace(route)
+      // Redirect to change password page if mustChangePassword is true
+      if (data.user.mustChangePassword) {
+        router.replace('/change-password')
+      } else {
+        const route = getDashboardRoute(data.user.role)
+        router.replace(route)
+      }
     } catch (err) {
       console.error('[Login error]', err)
       setError('An error occurred during login. Please try again.')
@@ -95,7 +102,7 @@ export default function LoginPage() {
               
               
               <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-white mb-4">
-                SWEARS
+                ExamSecure
               </h1>
               
               <p className="text-lg text-white/80 leading-relaxed mb-6">
@@ -117,7 +124,7 @@ export default function LoginPage() {
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary lg:hidden">
                   <Shield className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-label-caps text-primary lg:hidden">SWEARS</span>
+                <span className="text-label-caps text-primary lg:hidden">ExamSecure</span>
               </div>
               <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-3">
                 Welcome back
@@ -126,8 +133,11 @@ export default function LoginPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-8 rounded-lg border border-error-container bg-error-container/10 p-4">
-                <p className="text-body-sm text-error font-medium">{error}</p>
+              <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                  <p className="text-sm font-medium text-amber-800">{error}</p>
+                </div>
               </div>
             )}
 

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Clear the auth cookie
-    response.cookies.delete('auth-token')
+    response.cookies.delete('auth-token', { path: '/' })
 
     return response
   } catch (error) {

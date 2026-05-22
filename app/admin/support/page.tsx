@@ -1,382 +1,206 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  MessageSquare,
-  Megaphone,
-  Search,
-  Plus,
-  Filter,
-  Archive,
-  Bell,
-  Clock,
-  User,
-  AlertCircle,
+import { Button } from '@/components/ui/button'
+import {
+  LifeBuoy,
+  RefreshCw,
   CheckCircle,
-  XCircle
+  Loader2,
+  Clock
 } from 'lucide-react'
 
-type TabType = 'tickets' | 'announcements'
-type TicketStatus = 'open' | 'responded' | 'resolved' | 'closed'
-type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
-
 interface SupportTicket {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  submittedBy: string;
-  role: string;
-  status: TicketStatus;
-  priority: TicketPriority;
-  createdAt: string;
-  lastResponse?: string;
-  assignedTo?: string;
+  id: string
+  type: string
+  action: string
+  userId: string
+  details: string
+  createdAt: string
+  user: { name: string; email: string; role: string } | null
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  type: string;
-  priority: string;
-  author: string;
-  createdAt: string;
-  expiresAt?: string;
-  targetAudience: string;
-}
+export default function SupportPage() {
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [loading, setLoading] = useState(true)
 
-export default function SupportAndAnnouncements() {
-  const [activeTab, setActiveTab] = useState<TabType>('tickets');
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<TicketPriority | 'all'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showNewTicket, setShowNewTicket] = useState(false);
-  const [showNewAnnouncement, setShowNewAnnouncement] = useState(false);
-
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-
-  const handleCreateNew = () => {
-    console.log('Create new based on active tab:', activeTab);
-    if (activeTab === 'tickets') {
-      setShowNewTicket(true);
-    } else {
-      setShowNewAnnouncement(true);
+  const fetchTickets = async () => {
+    setLoading(true)
+    try {
+      // Fetch system logs that represent user issues
+      const res = await fetch('/api/admin/logs?limit=50&type=all')
+      const data = await res.json()
+      if (data.success) {
+        setTickets(data.logs)
+      }
+    } catch (err) {
+      console.error('Error fetching support data:', err)
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
-  const handleViewTicket = (ticketId: string) => {
-    console.log('View ticket:', ticketId);
-    // Implement view ticket functionality
-  };
+  useEffect(() => {
+    fetchTickets()
+  }, [])
 
-  const handleRespondTicket = (ticketId: string) => {
-    console.log('Respond to ticket:', ticketId);
-    // Implement respond to ticket functionality
-  };
+  // Filter password reset requests and suspicious logs
+  const passwordResets = tickets.filter(t =>
+    t.action?.toLowerCase().includes('password') ||
+    t.action?.toLowerCase().includes('reset')
+  )
 
-  const handleCloseTicket = (ticketId: string) => {
-    if (confirm('Are you sure you want to close this ticket?')) {
-      setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: 'closed' as TicketStatus } : t));
-    }
-  };
-
-  const handleArchiveAnnouncement = (announcementId: string) => {
-    console.log('Archive announcement:', announcementId);
-    // Implement archive announcement functionality
-  };
-
-  const handleDeleteAnnouncement = (announcementId: string) => {
-    if (confirm('Are you sure you want to delete this announcement?')) {
-      setAnnouncements(announcements.filter(a => a.id !== announcementId));
-    }
-  };
-
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
-    const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesPriority && matchesSearch;
-  });
-
-  const getStatusBadge = (status: TicketStatus) => {
-    const styles = {
-      open: 'bg-destructive/10 text-destructive',
-      responded: 'bg-warning/10 text-warning',
-      resolved: 'bg-success/10 text-success',
-      closed: 'bg-muted text-muted-foreground',
-    };
-    return (
-      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[status]}`}>
-        {status === 'open' && <div className="h-1.5 w-1.5 rounded-full bg-destructive" />}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
-  const getPriorityBadge = (priority: TicketPriority) => {
-    const styles = {
-      low: 'bg-muted text-muted-foreground',
-      medium: 'bg-warning/10 text-warning',
-      high: 'bg-orange-100 text-orange-800',
-      urgent: 'bg-destructive/10 text-destructive',
-    };
-    return (
-      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[priority]}`}>
-        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-      </span>
-    );
-  };
-
-  const tabs = [
-    { id: 'tickets', label: 'Support Tickets', icon: MessageSquare },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone },
-  ];
-
-  const ticketStats = [
-    { label: 'Open', count: tickets.filter(t => t.status === 'open').length, color: 'text-destructive' },
-    { label: 'Responded', count: tickets.filter(t => t.status === 'responded').length, color: 'text-warning' },
-    { label: 'Resolved', count: tickets.filter(t => t.status === 'resolved').length, color: 'text-success' },
-    { label: 'Closed', count: tickets.filter(t => t.status === 'closed').length, color: 'text-muted-foreground' },
-  ];
+  const issues = tickets.filter(t =>
+    t.type === 'SECURITY' ||
+    t.action?.toLowerCase().includes('failed') ||
+    t.details?.toLowerCase().includes('error')
+  )
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Support & Announcements</h1>
-          <p className="text-sm text-muted-foreground">Manage support tickets and system announcements</p>
-        </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create New
+      <div className="flex items-center justify-end">
+        <Button variant="outline" onClick={fetchTickets}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div>
-        <nav className="flex gap-2 border-b border-border">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabType)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'border-b-2 border-primary text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Password Reset Requests */}
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
+              Password Reset Requests
+            </h2>
+            {passwordResets.length === 0 ? (
+              <Card className="p-8 text-center">
+                <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No password reset requests</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {passwordResets.slice(0, 10).map((ticket) => (
+                  <Card key={ticket.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {ticket.user?.name || 'Unknown'} ({ticket.user?.role || 'N/A'})
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{ticket.user?.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {ticket.action} — {ticket.details || 'No details'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(ticket.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
 
-      {/* Tickets Tab */}
-      {activeTab === 'tickets' && (
-        <div className="space-y-4">
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
-            {ticketStats.map((stat) => (
-              <Card key={stat.label} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className={`text-2xl font-semibold ${stat.color}`}>{stat.count}</p>
-                  </div>
+          {/* Issues & Events */}
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
+              Issues & Security Events
+            </h2>
+            {issues.length === 0 ? (
+              <Card className="p-8 text-center">
+                <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No issues reported</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {issues.slice(0, 10).map((ticket) => (
+                  <Card key={ticket.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+                        ticket.type === 'SECURITY' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        <LifeBuoy className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {ticket.action || ticket.type}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {ticket.user?.name || 'System'} ({ticket.user?.role || 'N/A'})
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {ticket.details || 'No details'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(ticket.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* All Recent System Events */}
+          <div className="lg:col-span-2">
+            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
+              Recent System Events
+            </h2>
+            {tickets.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-sm text-muted-foreground">No system events recorded</p>
+              </Card>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Time</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">User</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Action</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {tickets.slice(0, 30).map((ticket) => (
+                        <tr key={ticket.id} className="hover:bg-accent/50">
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(ticket.createdAt).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">
+                            {ticket.user?.name || 'System'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                              ticket.type === 'SECURITY' ? 'bg-red-100 text-red-700' :
+                              ticket.type === 'AUTH' ? 'bg-blue-100 text-blue-700' :
+                              ticket.type === 'EXAM' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {ticket.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">{ticket.action}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">
+                            {ticket.details || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </Card>
-            ))}
-          </div>
-
-          {/* Filters */}
-          <Card className="p-4">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 text-muted-foreground -translate-y-1/2" />
-                <Input
-                  placeholder="Search tickets..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-10 w-full rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'all')}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-              >
-                <option value="all">All Status</option>
-                <option value="open">Open</option>
-                <option value="responded">Responded</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | 'all')}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-              >
-                <option value="all">All Priority</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-          </Card>
-
-          {/* Tickets Table */}
-          <div className="rounded-md border border-border bg-background">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Ticket
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Submitted By
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Category
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Priority
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Last Activity
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredTickets.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center">
-                        <p className="text-sm text-muted-foreground">No support tickets found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-accent/50">
-                        <td className="px-4 py-4">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{ticket.title}</p>
-                            <p className="text-xs text-muted-foreground">{ticket.id}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div>
-                            <p className="text-sm text-foreground">{ticket.submittedBy}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{ticket.role}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium">
-                            {ticket.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">{getPriorityBadge(ticket.priority)}</td>
-                        <td className="px-4 py-4">{getStatusBadge(ticket.status)}</td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {ticket.lastResponse || ticket.createdAt}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center justify-end gap-1">
-                            <button className="p-1 text-muted-foreground hover:text-foreground" title="View" onClick={() => handleViewTicket(ticket.id)}>
-                              <User className="h-4 w-4" />
-                            </button>
-                            {ticket.status === 'open' && (
-                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Respond" onClick={() => handleRespondTicket(ticket.id)}>
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            )}
-                            {ticket.status === 'resolved' && (
-                              <button className="p-1 text-muted-foreground hover:text-foreground" title="Close" onClick={() => handleCloseTicket(ticket.id)}>
-                                <Archive className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Announcements Tab */}
-      {activeTab === 'announcements' && (
-        <div className="space-y-4">
-          <div className="grid gap-4">
-            {announcements.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No announcements found</p>
-              </div>
-            ) : (
-              announcements.map((announcement) => (
-                <div key={announcement.id} className="rounded-md border border-border bg-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-foreground">{announcement.title}</h3>
-                        {announcement.priority === 'urgent' && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2 py-1 text-xs font-medium">
-                            <Bell className="h-3 w-3" />
-                            Urgent
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">{announcement.content}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {announcement.author}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {announcement.createdAt}
-                        </span>
-                        {announcement.expiresAt && (
-                          <span className="flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            Expires: {announcement.expiresAt}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => handleArchiveAnnouncement(announcement.id)}>
-                        <Archive className="h-4 w-4" />
-                      </button>
-                      <button className="p-1 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteAnnouncement(announcement.id)}>
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
             )}
           </div>
         </div>

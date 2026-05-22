@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
+import { authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
 
 // POST /api/student/exams/[examId]/start - Start an exam attempt
 export async function POST(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ examId: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authorize(request, ['STUDENT'])
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
+    const { examId } = await params
 
     const exam = await prisma.exam.findUnique({
-      where: { id: params.examId },
+      where: { id: examId },
       include: {
         questions: {
           include: {
-            options: {
-              orderBy: { order: 'asc' }
-            }
+            options: { orderBy: { order: 'asc' } }
           },
           orderBy: { order: 'asc' }
         }
@@ -30,36 +26,29 @@ export async function POST(
     })
 
     if (!exam) {
-      return NextResponse.json(
-        { error: 'Exam not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
     if (!exam.published) {
       return forbiddenResponse('Exam not published')
     }
 
-    // Check if exam is scheduled
     if (exam.status !== 'SCHEDULED' && exam.status !== 'ACTIVE') {
       return forbiddenResponse('Exam is not available')
     }
 
-    // Check if exam has started
     const now = new Date()
     if (exam.scheduledDate && new Date(exam.scheduledDate) > now) {
       return forbiddenResponse('Exam has not started yet')
     }
 
-    // Check if exam has ended
     if (exam.endDate && new Date(exam.endDate) < now) {
       return forbiddenResponse('Exam has ended')
     }
 
-    // Check if student has already attempted this exam
     const existingAttempt = await prisma.examAttempt.findFirst({
       where: {
-        examId: params.examId,
+        examId,
         studentId: user.id
       }
     })
@@ -68,10 +57,18 @@ export async function POST(
       return forbiddenResponse('You have already attempted this exam')
     }
 
-    // Create exam attempt
+    // Calculate remaining time based on scheduled start + duration
+    // If student joins late, they lose that time
+    let remainingSeconds = exam.duration * 60
+    if (exam.scheduledDate) {
+      const scheduledStart = new Date(exam.scheduledDate)
+      const elapsedSinceStart = Math.floor((now.getTime() - scheduledStart.getTime()) / 1000)
+      remainingSeconds = Math.max(0, exam.duration * 60 - elapsedSinceStart)
+    }
+
     const attempt = await prisma.examAttempt.create({
       data: {
-        examId: params.examId,
+        examId,
         studentId: user.id,
         status: 'IN_PROGRESS',
         totalMarks: exam.totalMarks
@@ -81,26 +78,26 @@ export async function POST(
     return NextResponse.json({
       success: true,
       attempt,
+      remainingSeconds,
       exam: {
         id: exam.id,
         title: exam.title,
         description: exam.description,
         duration: exam.duration,
         totalMarks: exam.totalMarks,
+        scheduledDate: exam.scheduledDate,
         questions: exam.questions.map(q => ({
           id: q.id,
           type: q.type,
           text: q.text,
           marks: q.marks,
-          options: q.type === 'MULTIPLE_CHOICE' ? q.options : null
+          instructions: q.instructions,
+          options: q.type === 'MULTIPLE_CHOICE' ? q.options : undefined
         }))
       }
     })
   } catch (error) {
     console.error('Start exam error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

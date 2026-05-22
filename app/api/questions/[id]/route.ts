@@ -1,33 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
+import { authorize, forbiddenResponse, unauthorizedResponse } from '@/lib/middleware'
 
 // PUT /api/questions/[id] - Update a question (Lecturer only)
 export async function PUT(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
-
+    const { id } = await params
     const body = await request.json()
     const { text, marks, options } = body
 
     const question = await prisma.question.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { exam: true }
     })
 
     if (!question) {
-      return NextResponse.json(
-        { error: 'Question not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Question not found' }, { status: 404 })
     }
 
     // Lecturers can only update their own exam questions
@@ -36,7 +30,7 @@ export async function PUT(
     }
 
     const updatedQuestion = await prisma.question.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(text && { text }),
         ...(marks && { marks: parseInt(marks) })
@@ -46,15 +40,13 @@ export async function PUT(
     // Update options if provided
     if (options && Array.isArray(options)) {
       // Delete existing options
-      await prisma.questionOption.deleteMany({
-        where: { questionId: params.id }
-      })
+      await prisma.questionOption.deleteMany({ where: { questionId: id } })
 
       // Create new options
       for (let i = 0; i < options.length; i++) {
         await prisma.questionOption.create({
           data: {
-            questionId: params.id,
+            questionId: id,
             text: options[i].text,
             isCorrect: options[i].isCorrect || false,
             order: i + 1
@@ -64,47 +56,37 @@ export async function PUT(
     }
 
     const questionWithOptions = await prisma.question.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        options: {
-          orderBy: { order: 'asc' }
-        }
+        options: { orderBy: { order: 'asc' } }
       }
     })
 
     return NextResponse.json({ success: true, question: questionWithOptions })
   } catch (error) {
     console.error('Update question error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 // DELETE /api/questions/[id] - Delete a question (Lecturer only)
 export async function DELETE(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
+    const { id } = await params
 
     const question = await prisma.question.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { exam: true }
     })
 
     if (!question) {
-      return NextResponse.json(
-        { error: 'Question not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Question not found' }, { status: 404 })
     }
 
     // Lecturers can only delete their own exam questions
@@ -112,16 +94,11 @@ export async function DELETE(
       return forbiddenResponse('Not authorized to delete this question')
     }
 
-    await prisma.question.delete({
-      where: { id: params.id }
-    })
+    await prisma.question.delete({ where: { id } })
 
     return NextResponse.json({ success: true, message: 'Question deleted successfully' })
   } catch (error) {
     console.error('Delete question error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -15,6 +15,9 @@ export interface AuthUser {
   email: string | null
   name: string
   role: string
+  classId: string | null
+  programId: string | null
+  mustChangePassword?: boolean
 }
 
 // Hash password
@@ -60,14 +63,17 @@ export const loginUser = async (email: string, password: string): Promise<AuthUs
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role
+    role: user.role,
+    classId: user.classId,
+    programId: user.programId,
+    mustChangePassword: user.mustChangePassword
   }
 }
 
 // Login with user ID and password
 export const loginByUserId = async (userId: string, password: string): Promise<AuthUser | null> => {
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { userId }
   })
 
   if (!user) {
@@ -83,7 +89,10 @@ export const loginByUserId = async (userId: string, password: string): Promise<A
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role
+    role: user.role,
+    classId: user.classId,
+    programId: user.programId,
+    mustChangePassword: user.mustChangePassword
   }
 }
 
@@ -95,7 +104,9 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
       id: true,
       email: true,
       name: true,
-      role: true
+      role: true,
+      classId: true,
+      programId: true
     }
   })
 
@@ -107,7 +118,9 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role
+    role: user.role,
+    classId: user.classId,
+    programId: user.programId
   }
 }
 

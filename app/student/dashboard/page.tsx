@@ -6,14 +6,8 @@ import {
   CalendarDays,
   CheckCircle2,
   XCircle,
-  ShieldCheck,
-  Bell,
-  Lock,
   PlayCircle,
   ChevronRight,
-  Megaphone,
-  Award,
-  Clock,
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -41,11 +35,11 @@ export default function StudentDashboard() {
   const upcomingCount = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) > new Date()).length;
   const activeCount = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) <= new Date() && new Date(e.endDate) > new Date()).length;
   const completedCount = exams.filter(e => e.hasAttempted).length;
-  const missedCount = 0; // Will be calculated based on end date
+  const missedCount = exams.filter(e => e.attemptStatus === 'missed').length;
 
   const activeExams = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) <= new Date() && new Date(e.endDate) > new Date());
-  const upcomingExams = exams.filter(e => !e.hasAttempted && new Date(e.scheduledDate) > new Date());
   const completedExams = exams.filter(e => e.hasAttempted);
+  const missedExams = exams.filter(e => e.attemptStatus === 'missed');
 
   const getCountdown = (date: string) => {
     const diff = new Date(date).getTime() - new Date().getTime();
@@ -94,32 +88,6 @@ export default function StudentDashboard() {
         )}
       </Section>
 
-      {/* Upcoming exams - Locked */}
-      <Section title="Upcoming Exams" caption="Locked until the official start time">
-        {upcomingExams.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">No upcoming exams scheduled</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border rounded-md border border-border bg-card">
-            {upcomingExams.map((exam) => (
-              <UpcomingRow
-                key={exam.id}
-                module={exam.module?.name || 'Unknown Module'}
-                type={exam.type}
-                date={new Date(exam.scheduledDate).toLocaleDateString()}
-                duration={`${exam.duration} min`}
-                countdown={getCountdown(exam.scheduledDate)}
-              />
-            ))}
-          </ul>
-        )}
-        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" />
-          Questions and exam paper become visible only at the scheduled time.
-        </p>
-      </Section>
-
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Completed */}
         <Section title="Recently Completed" caption="Submitted exams">
@@ -138,45 +106,18 @@ export default function StudentDashboard() {
 
         {/* Missed */}
         <Section title="Missed Exams" caption="Marked absent">
-          {completedExams.filter((e: any) => e.attemptStatus === 'missed').length === 0 ? (
+          {missedExams.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">No missed exams</p>
             </div>
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border bg-card">
-              {completedExams.filter((e: any) => e.attemptStatus === 'missed').map((exam) => (
+              {missedExams.map((exam) => (
                 <MissedRow key={exam.id} module={exam.module?.name || 'Unknown Module'} date={new Date(exam.scheduledDate).toLocaleDateString()} reason="Did not attend" />
               ))}
             </ul>
           )}
         </Section>
-      </div>
-
-      {/* Notifications */}
-      <Section title="Notifications" caption="Reminders, announcements, results">
-        <ul className="space-y-2">
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">No notifications</p>
-          </div>
-        </ul>
-      </Section>
-
-      {/* Integrity */}
-      <div className="rounded-md border border-border bg-card p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Integrity standing: Clean
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Biometric verification and proctoring history have no flags. Maintain
-              academic integrity for continued fast-track results.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -235,24 +176,6 @@ function ActiveCard({ module, type, endsIn, examId, status }: { module: string; 
   );
 }
 
-function UpcomingRow({ module, type, date, duration, countdown }: { module: string; type: string; date: string; duration: string; countdown: string }) {
-  return (
-    <li className="flex items-center justify-between gap-3 px-4 py-3">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{module}</p>
-        <p className="text-xs text-muted-foreground">{type} · {date} · {duration}</p>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{countdown}</span>
-        <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-          <Lock className="h-3 w-3" />
-          Locked
-        </span>
-      </div>
-    </li>
-  );
-}
-
 function CompletedRow({ module, date, status }: { module: string; date: string; status: string }) {
   return (
     <li className="flex items-center justify-between px-4 py-3">
@@ -278,16 +201,6 @@ function MissedRow({ module, date, reason }: { module: string; date: string; rea
       <Link href="/student/help" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
         Request review <ChevronRight className="h-3 w-3" />
       </Link>
-    </li>
-  );
-}
-
-function Notice({ icon: Icon, text, tone }: { icon: any; text: string; tone: "success" | "warning" | "info" }) {
-  const color = tone === "success" ? "text-[color:var(--success)]" : tone === "warning" ? "text-[color:var(--warning)]" : "text-primary";
-  return (
-    <li className="flex items-start gap-2 rounded-md border border-border bg-card p-3 text-sm text-foreground">
-      <Icon className={"mt-0.5 h-4 w-4 " + color} />
-      <span>{text}</span>
     </li>
   );
 }

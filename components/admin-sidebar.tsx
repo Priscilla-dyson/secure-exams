@@ -9,22 +9,18 @@ export function AdminSidebar() {
 
   const links = [
     { href: '/admin/dashboard', label: 'Dashboard' },
-    { href: '/admin/users', label: 'Users Management' },
-    { href: '/admin/students', label: 'Students' },
-    { href: '/admin/lecturers', label: 'Lecturers' },
-    { href: '/admin/departments', label: 'Departments' },
-    { href: '/admin/courses', label: 'Courses' },
-    { href: '/admin/examinations', label: 'Examinations' },
-    { href: '/admin/bulk-upload', label: 'Bulk Upload' },
-    { href: '/admin/logs', label: 'System Logs' },
-    { href: '/admin/settings', label: 'Settings' },
+    { href: '/admin/users', label: 'Users' },
+    { href: '/admin/examination-oversight', label: 'Examination Oversight' },
+    { href: '/admin/reports', label: 'Reports' },
+    { href: '/admin/academic-structure', label: 'Academic Structure' },
+    { href: '/admin/support', label: 'Support' },
   ]
 
   return (
     <aside className="w-[260px] border-r border-[#e2e8f0] bg-white">
       <div className="px-6 py-6 border-b border-[#e2e8f0]">
         <p className="text-[10px] uppercase tracking-[0.35em] text-[#64748b]">Admin console</p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[#1a202c]">SWEARS</h1>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[#1a202c]">ExamSecure</h1>
       </div>
 
       <nav className="px-4 py-6 space-y-1">

@@ -4,369 +4,293 @@ import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   FileText, 
-  Download, 
-  Users, 
   CheckCircle, 
   XCircle, 
   Eye, 
-  Send, 
   Save,
   AlertTriangle,
-  Clock,
-  UserCheck,
-  UserX,
-  Flag,
-  ShieldCheck,
-  ChevronRight,
-  Edit,
-  Search
 } from 'lucide-react'
-import { SidebarLayout } from '@/components/sidebar-layout'
+
+interface Result {
+  id: string
+  attemptId: string
+  studentId: string
+  examId: string
+  score: number
+  totalMarks: number
+  percentage: number
+  grade: string | null
+  published: boolean
+  publishedAt: string | null
+  exam: { title: string; module: { name: string; code: string } }
+  student: { id: string; name: string; email: string; registrationNumber: string | null }
+}
+
+interface Exam {
+  id: string
+  title: string
+  module: { name: string; code: string }
+}
 
 export default function ResultsPage() {
-  const [selectedExam, setSelectedExam] = useState<string>('')
-  const [selectedStudent, setSelectedStudent] = useState<any>(null)
-  const [resultStatus, setResultStatus] = useState<'hidden' | 'published'>('hidden')
-  const [exams, setExams] = useState<any[]>([])
+  const [selectedExamId, setSelectedExamId] = useState<string>('all')
+  const [selectedResult, setSelectedResult] = useState<any>(null)
+  const [exams, setExams] = useState<Exam[]>([])
+  const [results, setResults] = useState<Result[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchExams()
+    Promise.all([fetchExams(), fetchResults()])
   }, [])
 
   const fetchExams = async () => {
     try {
       const response = await fetch('/api/exams')
       const data = await response.json()
-      if (data.success) {
-        setExams(data.exams)
-      }
+      if (data.success) setExams(data.exams)
     } catch (error) {
       console.error('Error fetching exams:', error)
+    }
+  }
+
+  const fetchResults = async () => {
+    try {
+      const response = await fetch('/api/results')
+      const data = await response.json()
+      if (data.success) setResults(data.results)
+    } catch (error) {
+      console.error('Error fetching results:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const currentExam = exams.find(e => e.id === selectedExam)
+  const handlePublish = async (resultId: string) => {
+    try {
+      const res = await fetch(`/api/results/${resultId}/publish`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setResults(results.map(r => r.id === resultId ? { ...r, published: true } : r))
+      } else {
+        alert(data.error || 'Failed to publish')
+      }
+    } catch (err) {
+      console.error('Error publishing:', err)
+    }
+  }
+
+  const filteredResults = selectedExamId === 'all'
+    ? results
+    : results.filter(r => r.examId === selectedExamId)
+
+  const examIdsWithResults = new Set(results.map(r => r.examId))
+  const examsWithResults = exams.filter(e => examIdsWithResults.has(e.id))
+
+  const publishedCount = results.filter(r => r.published).length
 
   if (loading) {
     return (
-      <SidebarLayout userRole="lecturer">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">Loading exam results...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">Loading exam results...</p>
         </div>
-      </SidebarLayout>
+      </div>
     )
   }
 
-  if (!currentExam && exams.length > 0) {
-    setSelectedExam(exams[0].id)
-  }
-
-  if (exams.length === 0) {
+  if (results.length === 0) {
     return (
-      <SidebarLayout userRole="lecturer">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">No exam results available</p>
-          </div>
-        </div>
-      </SidebarLayout>
-    )
-  }
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      pass: 'bg-success/10 text-success',
-      fail: 'bg-destructive/10 text-destructive',
-      absent: 'bg-muted text-muted-foreground'
-    }
-    return (
-      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-muted text-muted-foreground'}`}>
-        {status === 'pass' && <CheckCircle className="h-3 w-3" />}
-        {status === 'fail' && <XCircle className="h-3 w-3" />}
-        {status === 'absent' && <UserX className="h-3 w-3" />}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-12 text-center max-w-md">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium text-foreground">No results yet</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Results will appear here once students submit exam attempts and grading is completed.
+          </p>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <SidebarLayout userRole="lecturer">
-      <div className="space-y-6">
-        {/* Result Status Banner */}
-        <div className={`p-4 rounded-md border ${
-          resultStatus === 'hidden' 
-            ? 'bg-warning/10 border-warning/20' 
-            : 'bg-success/10 border-success/20'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {resultStatus === 'hidden' ? (
-                <AlertTriangle className="h-5 w-5 text-warning" />
-              ) : (
-                <CheckCircle className="h-5 w-5 text-success" />
-              )}
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Results are currently {resultStatus === 'hidden' ? 'hidden from students' : 'published to students'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {resultStatus === 'hidden' 
-                    ? 'Students cannot see their results yet. Click "Publish Results" when ready.' 
-                    : 'Students can now view their results and feedback.'}
-                </p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setResultStatus(resultStatus === 'hidden' ? 'published' : 'hidden')}
-            >
-              {resultStatus === 'hidden' ? 'Publish Now' : 'Hide Results'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Exam Selection and Stats */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <Card className="p-5">
-              <div className="mb-4">
-                <Label className="text-sm font-medium text-foreground">Select Exam</Label>
-                <Select value={selectedExam} onValueChange={setSelectedExam}>
-                  <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No exams available</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-4 mt-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Total Students</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.totalStudents}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Submitted</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.submitted}</p>
-                  <p className="text-xs text-muted-foreground">{currentExam.absent} absent</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Pass Rate</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.passCount}/{currentExam.totalStudents}</p>
-                  <p className="text-xs text-muted-foreground">{currentExam.totalStudents > 0 ? Math.round((currentExam.passCount / currentExam.totalStudents) * 100) : 0}%</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Average Score</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.averageScore}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 mt-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Highest Score</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.highestScore}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Lowest Score</p>
-                  <p className="text-2xl font-semibold text-foreground">{currentExam.lowestScore}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Integrity Issues</p>
-                  <p className="text-2xl font-semibold text-warning">{currentExam.integrityWarnings + currentExam.integrityViolations}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
-
+    <div className="space-y-6">
+      <div className={`p-4 rounded-md border ${publishedCount > 0 ? 'bg-success/10 border-success/20' : 'bg-warning/10 border-warning/20'}`}>
+        <div className="flex items-center gap-3">
+          {publishedCount > 0 ? (
+            <CheckCircle className="h-5 w-5 text-success shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+          )}
           <div>
-            <Card className="p-5">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Button className="w-full justify-start" variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Results (CSV)
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate Report (PDF)
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Send className="w-4 h-4 mr-2" />
-                  Email Results to Students
-                </Button>
-              </div>
-            </Card>
+            <p className="text-sm font-medium text-foreground">
+              {publishedCount > 0
+                ? `${publishedCount} result(s) published to students`
+                : 'No results have been published yet'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {results.length} total result(s) across {examsWithResults.length} exam(s)
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Student Results Table */}
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Student
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Registration
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Score
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Attendance
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Integrity
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {currentExam.students.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center">
-                      <p className="text-sm text-muted-foreground">No students found for this exam</p>
+      <div className="mb-4 max-w-sm">
+        <Label className="text-sm font-medium text-foreground">Filter by Exam</Label>
+        <Select value={selectedExamId} onValueChange={setSelectedExamId}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="All exams" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Exams ({results.length} results)</SelectItem>
+            {examsWithResults.map(exam => (
+              <SelectItem key={exam.id} value={exam.id}>
+                {exam.module?.code} - {exam.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Total</p>
+          <p className="text-2xl font-semibold text-foreground mt-2">{filteredResults.length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Passed</p>
+          <p className="text-2xl font-semibold text-success mt-2">{filteredResults.filter(r => r.percentage >= 50).length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Failed</p>
+          <p className="text-2xl font-semibold text-destructive mt-2">{filteredResults.filter(r => r.percentage < 50).length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Published</p>
+          <p className="text-2xl font-semibold text-foreground mt-2">{filteredResults.filter(r => r.published).length}</p>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Student</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Exam</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Score</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">%</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Published</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredResults.map((result) => {
+                const passed = result.percentage >= 50
+                return (
+                  <tr key={result.id} className="hover:bg-accent/50">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-medium text-foreground">{result.student?.name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground">{result.student?.registrationNumber || ''}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <p className="text-sm text-foreground">{result.exam?.module?.code || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{result.exam?.title || ''}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="font-semibold text-foreground">{result.score}</span>
+                      <span className="text-xs text-muted-foreground">/{result.totalMarks}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`font-medium ${passed ? 'text-success' : 'text-destructive'}`}>{result.percentage}%</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                        passed ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+                      }`}>
+                        {passed ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                        {passed ? 'Pass' : 'Fail'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`text-xs font-medium ${result.published ? 'text-success' : 'text-warning'}`}>
+                        {result.published ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedResult(result)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant={result.published ? 'outline' : 'default'}
+                          onClick={() => handlePublish(result.id)}
+                        >
+                          {result.published ? 'Published' : 'Publish'}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  currentExam.students.map((student: any) => (
-                    <tr key={student.id} className="hover:bg-accent/50">
-                      <td className="px-4 py-4">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{student.name}</p>
-                          <p className="text-xs text-muted-foreground">{student.regNumber}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        {getStatusBadge(student.status)}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-semibold text-foreground">{student.marks}</span>
-                          {student.marks !== null && (
-                            <span className="text-xs text-muted-foreground">/100</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <UserCheck className="h-4 w-4 text-success" />
-                          <span className="text-sm text-foreground">Present</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4 text-success" />
-                          <div>
-                            <span className="text-sm font-medium text-foreground">{student.integrityScore}%</span>
-                            {student.warnings > 0 && (
-                              <span className="text-xs text-warning ml-1">({student.warnings} warnings)</span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedStudent(student)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedStudent(student)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
-        {/* Student Detail Modal */}
-        {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-2xl rounded-md border border-border bg-background p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Student Results Details</h3>
-                <Button variant="outline" onClick={() => setSelectedStudent(null)}>
-                  Close
-                </Button>
+      {selectedResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl rounded-md border border-border bg-background p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Result Details</h3>
+              <Button variant="outline" onClick={() => setSelectedResult(null)}>Close</Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label>Student</Label>
+                <Input value={selectedResult.student?.name || ''} readOnly />
               </div>
-              
-              <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <Label>Student Name</Label>
-                  <Input value={selectedStudent.name} readOnly />
-                </div>
-                <div>
-                  <Label>Registration Number</Label>
-                  <Input value={selectedStudent.regNumber} readOnly />
-                </div>
-                <div>
-                  <Label>Score</Label>
-                  <Input value={selectedStudent.marks?.toString() || ''} readOnly />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Input value={selectedStudent.status} readOnly />
-                </div>
-                <div>
-                  <Label>Integrity Score</Label>
-                  <Input value={selectedStudent.integrityScore?.toString() || ''} readOnly />
-                </div>
+              <div>
+                <Label>Registration</Label>
+                <Input value={selectedResult.student?.registrationNumber || '-'} readOnly />
               </div>
-              
-              <div className="mt-6">
-                <Label>Feedback</Label>
-                <Textarea 
-                  placeholder="Enter feedback for this student..."
-                  rows={6}
-                />
+              <div>
+                <Label>Score</Label>
+                <Input value={`${selectedResult.score} / ${selectedResult.totalMarks}`} readOnly />
               </div>
-              
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Feedback
-                </Button>
-                <Button>
-                  <Send className="w-4 h-4 mr-2" />
-                  Send to Student
-                </Button>
+              <div>
+                <Label>Percentage</Label>
+                <Input value={`${selectedResult.percentage}%`} readOnly />
+              </div>
+              <div>
+                <Label>Grade</Label>
+                <Input value={selectedResult.grade || '-'} readOnly />
+              </div>
+              <div>
+                <Label>Published</Label>
+                <Input value={selectedResult.published ? 'Yes' : 'No'} readOnly />
               </div>
             </div>
+
+            <div className="mt-6">
+              <Label>Feedback</Label>
+              <Textarea placeholder="Enter feedback for this student..." rows={4} />
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setSelectedResult(null)}>Close</Button>
+              <Button><Save className="w-4 h-4 mr-2" />Save Feedback</Button>
+            </div>
           </div>
-        )}
-      </div>
-    </SidebarLayout>
+        </div>
+      )}
+    </div>
   )
 }

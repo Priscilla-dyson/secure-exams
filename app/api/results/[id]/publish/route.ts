@@ -1,32 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
+import { authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
 
 // POST /api/results/[id]/publish - Publish a result (Lecturer only)
 export async function POST(
   request: NextRequest,
-  context: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context
   try {
     const user = await authorize(request, ['LECTURER', 'ADMIN'])
+    if (!user) return unauthorizedResponse()
 
-    if (!user) {
-      return unauthorizedResponse()
-    }
+    const { id } = await params
 
     const result = await prisma.result.findUnique({
-      where: { id: params.id },
-      include: {
-        exam: true
-      }
+      where: { id },
+      include: { exam: true }
     })
 
     if (!result) {
-      return NextResponse.json(
-        { error: 'Result not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Result not found' }, { status: 404 })
     }
 
     // Lecturers can only publish results for their own exams
@@ -35,7 +28,7 @@ export async function POST(
     }
 
     const updatedResult = await prisma.result.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         published: true,
         publishedAt: new Date()
@@ -45,9 +38,6 @@ export async function POST(
     return NextResponse.json({ success: true, result: updatedResult })
   } catch (error) {
     console.error('Publish result error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

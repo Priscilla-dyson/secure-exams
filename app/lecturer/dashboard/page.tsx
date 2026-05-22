@@ -3,41 +3,38 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { 
   BookOpen, 
   FileText, 
   Clock, 
   CheckCircle, 
-  AlertCircle,
   Plus,
   Eye,
   BarChart3,
   Calendar,
-  Users,
-  GraduationCap,
-  PlayCircle,
   FileEdit,
-  Award,
-  TrendingUp
+  ArrowRight
 } from 'lucide-react'
-import { SidebarLayout } from '@/components/sidebar-layout';
 
 export default function LecturerDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [exams, setExams] = useState<any[]>([])
+  const [assignedModules, setAssignedModules] = useState<any[]>([])
+  const [results, setResults] = useState<any[]>([])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const currentUser = localStorage.getItem('currentUser')
-      if (!currentUser || JSON.parse(currentUser).role !== 'lecturer') {
+      if (!currentUser || JSON.parse(currentUser).role !== 'LECTURER') {
         router.replace('/login')
         return
       }
       setUser(JSON.parse(currentUser))
     }
-    fetchExams()
+    Promise.all([fetchExams(), fetchModules(), fetchResults()])
     setIsLoading(false)
   }, [router])
 
@@ -45,242 +42,205 @@ export default function LecturerDashboard() {
     try {
       const response = await fetch('/api/exams');
       const data = await response.json();
-      if (data.success) {
-        setExams(data.exams);
-      }
+      if (data.success) setExams(data.exams);
     } catch (error) {
       console.error('Error fetching exams:', error);
     }
   };
 
-  const stats = {
-    totalModules: 0,
-    totalExams: exams.length,
-    pendingGrading: exams.filter(e => e.status === 'COMPLETED').length,
-    resultsReleased: exams.filter(e => e.published).length
-  }
+  const fetchModules = async () => {
+    try {
+      const response = await fetch('/api/lecturer/modules');
+      const data = await response.json();
+      if (data.success) setAssignedModules(data.modules);
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+    }
+  };
+
+  const fetchResults = async () => {
+    try {
+      const response = await fetch('/api/results');
+      const data = await response.json();
+      if (data.success) setResults(data.results);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+    }
+  };
 
   const now = new Date();
-  const upcomingExams = exams.filter(e => e.status === 'SCHEDULED' && new Date(e.scheduledDate) > now);
-  const activeExams = exams.filter(e => e.status === 'ACTIVE' || (e.status === 'SCHEDULED' && new Date(e.scheduledDate) <= now && new Date(e.endDate) > now));
-  const draftExams = exams.filter(e => e.status === 'DRAFT');
-  const completedExams = exams.filter(e => e.status === 'COMPLETED');
-  const notifications: any[] = []
+  const upcomingExams = exams.filter(e => 
+    e.status === 'SCHEDULED' && e.scheduledDate && new Date(e.scheduledDate) > now
+  );
+  const activeExams = exams.filter(e => e.status === 'ACTIVE');
+  const pastExams = exams.filter(e => 
+    e.status === 'COMPLETED' || 
+    (e.status === 'SCHEDULED' && e.scheduledDate && new Date(e.scheduledDate) < now)
+  );
 
   if (isLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-5" />
-          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     )
   }
 
   return (
-    <SidebarLayout userRole="lecturer">
-      <div className="space-y-8">
-        {/* Stats Grid */}
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Total Modules
-            </p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Welcome back, <span className="font-medium text-foreground">{user?.name || 'Lecturer'}</span></p>
+        <Link href="/lecturer/exam-management">
+          <Button size="sm"><Plus className="w-4 h-4 mr-1" />Create Exam</Button>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Modules</span>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{stats.totalModules}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Active this semester</p>
+          <p className="text-2xl font-bold text-foreground">{assignedModules.length}</p>
         </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Total Exams
-            </p>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Exams</span>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{stats.totalExams}</p>
-          <p className="mt-1 text-xs text-muted-foreground">All time</p>
+          <p className="text-2xl font-bold text-foreground">{exams.length}</p>
         </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Pending Grading
-            </p>
-            <Clock className="h-4 w-4 text-warning" />
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Drafts</span>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{stats.pendingGrading}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Awaiting review</p>
+          <p className="text-2xl font-bold text-foreground">{exams.filter(e => e.status === 'DRAFT').length}</p>
         </div>
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Results Released
-            </p>
-            <CheckCircle className="h-4 w-4 text-success" />
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Published</span>
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-foreground">{stats.resultsReleased}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Published</p>
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Upcoming Exams */}
-        <div className="lg:col-span-2">
-          <section>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                Upcoming Exams
-              </h2>
-              <Link href="/lecturer/exam-management" className="text-xs text-primary hover:text-primary/80">
-                View All
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {upcomingExams.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No upcoming exams scheduled</p>
-                </div>
-              ) : (
-                upcomingExams.map((exam) => (
-                  <div key={exam.id} className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown Module'}</p>
-                      <p className="text-xs text-muted-foreground">{exam.type}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-foreground">{new Date(exam.scheduledDate).toLocaleDateString()}</p>
-                      <p className="text-xs text-muted-foreground">{exam.scheduledTime}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Active Exams */}
-        <div>
-          <section>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                Active Exams
-              </h2>
-            </div>
-            <div className="space-y-3">
-              {activeExams.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No active exams</p>
-                </div>
-              ) : (
-                activeExams.map((exam) => (
-                  <div key={exam.id} className="rounded-md border border-border bg-card p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-2 w-2 rounded-full bg-success animate-pulse"></div>
-                      <span className="text-xs font-medium text-success">LIVE</span>
-                      <span className="text-xs text-muted-foreground">{exam.endTime}</span>
-                    </div>
-                    <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown Module'}</p>
-                    <p className="text-xs text-muted-foreground">{exam.type}</p>
-                    <p className="text-xs text-muted-foreground mt-2">{exam._count?.examAttempts || 0} students</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+          <p className="text-2xl font-bold text-foreground">{results.filter(r => r.published).length}</p>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <section>
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Quick Actions
-          </h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Link href="/lecturer/exam-management">
-            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 hover:bg-accent transition-colors">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <Plus className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Create Exam</p>
-                <p className="text-xs text-muted-foreground">New examination</p>
-              </div>
-            </div>
-          </Link>
-          <Link href="/lecturer/question-bank">
-            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 hover:bg-accent transition-colors">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <FileEdit className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Manage Questions</p>
-                <p className="text-xs text-muted-foreground">Question bank</p>
-              </div>
-            </div>
-          </Link>
-          <Link href="/lecturer/submissions">
-            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 hover:bg-accent transition-colors">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <Eye className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Grade Submissions</p>
-                <p className="text-xs text-muted-foreground">Review answers</p>
-              </div>
-            </div>
-          </Link>
-          <Link href="/lecturer/results">
-            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 hover:bg-accent transition-colors">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <BarChart3 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">View Results</p>
-                <p className="text-xs text-muted-foreground">Analytics</p>
-              </div>
-            </div>
-          </Link>
-        </div>
-      </section>
-
-      {/* Recent Notifications */}
-      <section>
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Recent Notifications
-          </h2>
-        </div>
-        <div className="space-y-3">
-          {notifications.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">No new notifications</p>
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Upcoming Exams</h3>
+            <Link href="/lecturer/exam-management" className="text-xs text-primary hover:underline flex items-center gap-0.5">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {upcomingExams.length === 0 ? (
+            <div className="p-8 text-center">
+              <Calendar className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No upcoming exams</p>
             </div>
           ) : (
-            notifications.map((notification) => (
-              <div key={notification.id} className="flex items-start gap-3 rounded-md border border-border bg-card p-4">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                  notification.type === 'alert' ? 'bg-destructive/10' : 'bg-primary/10'
-                }`}>
-                  <AlertCircle className={`h-4 w-4 ${
-                    notification.type === 'alert' ? 'text-destructive' : 'text-primary'
-                  }`} />
+            <div className="divide-y divide-border">
+              {upcomingExams.map((exam) => (
+                <div key={exam.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground">{exam.title} &middot; {exam.duration} min</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-4">
+                    {new Date(exam.scheduledDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">{notification.message}</p>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
-      </section>
+
+        <div className="rounded-lg border border-border bg-card">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Active Exams</h3>
+          </div>
+          {activeExams.length === 0 ? (
+            <div className="p-8 text-center">
+              <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No active exams</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {activeExams.map((exam) => (
+                <div key={exam.id} className="px-4 py-3 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground">{exam.title} &middot; {exam.duration} min</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </SidebarLayout>
+
+      {pastExams.length > 0 && (
+        <div className="rounded-lg border border-border bg-card">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Completed Exams</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {pastExams.slice(0, 5).map((exam) => (
+              <div key={exam.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{exam.module?.name || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">{exam.title}</p>
+                </div>
+                <span className="text-xs text-muted-foreground">{exam._count?.examAttempts || 0} submissions</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Link href="/lecturer/exam-management" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <Plus className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">Create Exam</p>
+            <p className="text-xs text-muted-foreground truncate">New examination</p>
+          </div>
+        </Link>
+        <Link href="/lecturer/submissions" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <Eye className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">Submissions</p>
+            <p className="text-xs text-muted-foreground truncate">Grade answers</p>
+          </div>
+        </Link>
+        <Link href="/lecturer/results" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <BarChart3 className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">Results</p>
+            <p className="text-xs text-muted-foreground truncate">Analytics</p>
+          </div>
+        </Link>
+        <Link href="/lecturer/profile" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <FileEdit className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">Profile</p>
+            <p className="text-xs text-muted-foreground truncate">Settings</p>
+          </div>
+        </Link>
+      </div>
+    </div>
   )
 }

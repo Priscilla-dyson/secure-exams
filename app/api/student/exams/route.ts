@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { authenticate, authorize, unauthorizedResponse } from '@/lib/middleware'
+import { authorize, unauthorizedResponse } from '@/lib/middleware'
 
-// GET /api/student/exams - Get scheduled exams for student
+// GET /api/student/exams - Get exams for the logged-in student (filtered by their class)
 export async function GET(request: NextRequest) {
   try {
     const user = await authorize(request, ['STUDENT'])
@@ -11,13 +11,35 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse()
     }
 
+    // Only show exams for modules in the student's class
+    if (!user.classId) {
+      return NextResponse.json({ success: true, exams: [] })
+    }
+
+    const now = new Date()
+
+    // Get the student's class modules - show ALL published exams
     const exams = await prisma.exam.findMany({
       where: {
         published: true,
-        status: { in: ['SCHEDULED', 'ACTIVE'] }
+        module: {
+          classId: user.classId
+        }
       },
       include: {
-        module: true,
+        module: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            class: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
         creator: {
           select: {
             id: true,
@@ -39,10 +61,27 @@ export async function GET(request: NextRequest) {
           }
         })
 
+        // Determine if exam was missed (COMPLETED and no attempt, or end date passed and no attempt)
+        const endDate = exam.endDate
+        let isMissed = false
+        
+        if (!attempt) {
+          if (exam.status === 'COMPLETED') {
+            isMissed = true
+          } else if (endDate && new Date(endDate) < now && exam.status !== 'DRAFT') {
+            isMissed = true
+          } else if (exam.scheduledDate) {
+            const examEndTime = new Date(exam.scheduledDate.getTime() + exam.duration * 60000)
+            if (examEndTime < now && exam.status !== 'DRAFT') {
+              isMissed = true
+            }
+          }
+        }
+
         return {
           ...exam,
           hasAttempted: !!attempt,
-          attemptStatus: attempt?.status
+          attemptStatus: attempt?.status || (isMissed ? 'missed' : null)
         }
       })
     )
