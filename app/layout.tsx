@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'SWEARS - Secure Web-Based Examination and Automated Results System',
+  title: 'ExamSecure - Secure Web-Based Examination and Automated Results System',
   description: 'Professional examination management and monitoring platform',
   generator: 'v0.app',
   icons: {

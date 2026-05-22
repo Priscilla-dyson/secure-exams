@@ -16,7 +16,7 @@ export default function LandingPage() {
       <nav className="w-full border-b border-border sticky top-0 z-50 bg-surface-container-lowest">
         <div className="w-full px-7 lg:px-11 py-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <span className="text-4xl font-bold tracking-tight text-primary">SWEARS</span>
+            <span className="text-4xl font-bold tracking-tight text-primary">ExamSecure</span>
           </div>
           <div className="hidden md:flex items-center space-x-10">
             <a href="#features" className="text-base font-medium text-onSurface-variant hover:text-primary transition-colors duration-200">
@@ -119,9 +119,6 @@ export default function LandingPage() {
               <h2 className="text-4xl lg:text-5xl font-bold mb-5 tracking-tight text-foreground">
                 Everything you need for <br />secure examinations
               </h2>
-              <p className="text-body-md text-onSurface-variant max-w-3xl mx-auto">
-                Comprehensive examination management with enterprise-grade security and AI-powered monitoring
-              </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -150,17 +147,6 @@ export default function LandingPage() {
               {/* Feature 3 */}
               <div className="group p-8 rounded-xl bg-surface-container-lowest border border-border hover:border-primary transition-all duration-300 hover:-translate-y-1">
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-primary-fixed">
-                  <Lock className="w-7 h-7 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-foreground">Enterprise Security</h3>
-                <p className="text-body-sm text-onSurface-variant leading-relaxed">
-                  Military-grade encryption, secure sessions, and complete audit trails for full institutional compliance and data protection.
-                </p>
-              </div>
-
-              {/* Feature 4 */}
-              <div className="group p-8 rounded-xl bg-surface-container-lowest border border-border hover:border-primary transition-all duration-300 hover:-translate-y-1">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-primary-fixed">
                   <Users className="w-7 h-7 text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3 text-foreground">Multi-User Management</h3>
@@ -180,16 +166,6 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              {/* Feature 6 */}
-              <div className="group p-8 rounded-xl bg-surface-container-lowest border border-border hover:border-primary transition-all duration-300 hover:-translate-y-1">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-primary-fixed">
-                  <FileText className="w-7 h-7 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-foreground">Compliance Ready</h3>
-                <p className="text-body-sm text-onSurface-variant leading-relaxed">
-                  Meets international education standards with detailed reporting and certification capabilities for accreditation.
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -202,7 +178,7 @@ export default function LandingPage() {
             <div className="text-center mb-16">
               <span className="text-label-caps text-primary mb-4 inline-block">SIMPLE PROCESS</span>
               <h2 className="text-4xl lg:text-5xl font-bold mb-5 tracking-tight text-foreground">
-                How SWEARS Works
+                How ExamSecure Works
               </h2>
               <p className="text-body-md text-onSurface-variant max-w-3xl mx-auto">
                 Simple, secure, and efficient examination management in three easy steps
@@ -254,7 +230,7 @@ export default function LandingPage() {
                 Trusted by Leading Institutions
               </h2>
               <p className="text-body-md text-onSurface-variant max-w-3xl mx-auto">
-                See what educators say about SWEARS
+                See what educators say about ExamSecure
               </p>
             </div>
 
@@ -266,7 +242,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-body-md mb-6 italic leading-relaxed text-onSurface-variant">
-                  &quot;SWEARS has transformed our examination process. The AI monitoring is incredibly accurate, and our students appreciate the fair testing environment.&quot;
+                  "ExamSecure has transformed our examination process. The AI monitoring is incredibly accurate, and our students appreciate the fair testing environment."
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
@@ -286,7 +262,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-body-md mb-6 italic leading-relaxed text-onSurface-variant">
-                  &quot;The automated results and detailed analytics have saved us countless hours. Highly recommend for any educational institution.&quot;
+                  "The automated results and detailed analytics have saved us countless hours. Highly recommend for any educational institution."
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center bg-secondary">
@@ -306,7 +282,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-body-md mb-6 italic leading-relaxed text-onSurface-variant">
-                  &quot;Security and compliance were our top priorities. SWEARS exceeded our expectations with enterprise-grade protection and peace of mind.&quot;
+                  "Security and compliance were our top priorities. ExamSecure exceeded our expectations with enterprise-grade protection and peace of mind."
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center bg-tertiary">
@@ -331,7 +307,7 @@ export default function LandingPage() {
               Ready to Transform Your Examination Process?
             </h2>
             <p className="text-body-md mb-10 leading-relaxed text-primary-onContainer/90">
-              Join hundreds of institutions already using SWEARS for secure, efficient examinations.
+              Join hundreds of institutions already using ExamSecure for secure, efficient examinations.
             </p>
             <div className="flex flex-col sm:flex-row gap-5 justify-center">
               <Link href="/login">
@@ -360,7 +336,7 @@ export default function LandingPage() {
                   <div className="w-10 h-10 rounded-md flex items-center justify-center bg-primary">
                     <Shield className="w-5 h-5 text-white" />
                   </div>
-                  <span className="text-xl font-bold tracking-tight text-primary">SWEARS</span>
+                  <span className="text-xl font-bold tracking-tight text-primary">ExamSecure</span>
                 </div>
                 <p className="text-body-md mb-5 max-w-md leading-relaxed text-onSurface-variant">
                   Secure Web-Based Examination and Automated Results System. Empowering educational institutions with cutting-edge examination technology.
@@ -387,7 +363,7 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-8 text-center text-body-sm text-onSurface-variant border-t border-border">
-              <p>&copy; 2025 SWEARS - Secure Web-Based Examination and Automated Results System. All rights reserved.</p>
+              <p>&copy; 2025 ExamSecure - Secure Web-Based Examination and Automated Results System. All rights reserved.</p>
             </div>
           </div>
         </div>
