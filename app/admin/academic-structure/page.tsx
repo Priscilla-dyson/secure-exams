@@ -534,7 +534,7 @@ export default function AcademicStructure() {
   // ─── RENDER ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Action buttons — title is rendered by sidebar layout */}
       <div className="flex items-center justify-end">
         {activeTab === 'programs' && (

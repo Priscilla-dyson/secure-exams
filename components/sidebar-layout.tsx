@@ -259,8 +259,8 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
             </div>
           )}
           
-          {/* Page Content */}
-          <div className="p-6 lg:p-8">
+          {/* Page Content - reduced padding for compactness */}
+          <div className="p-4 lg:p-6">
             {children}
           </div>
         </main>

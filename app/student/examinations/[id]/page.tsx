@@ -512,6 +512,31 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
   const [secondsLeft, setSecondsLeft] = useState(remainingSeconds);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [fullscreenViolations, setFullscreenViolations] = useState(0);
+  const [faceWarnings, setFaceWarnings] = useState(0);
+  const [suspiciousActivity, setSuspiciousActivity] = useState(false);
+  const antiCheatLoggedRef = useRef<Set<string>>(new Set());
+
+  // Send anti-cheat violation to server
+  const logAntiCheatViolation = useCallback(async (violationType: string, details?: string, durationAway?: number) => {
+    if (!attemptId) return;
+    
+    // Generate a unique key for this violation to avoid duplicates
+    const key = `${violationType}_${Date.now()}`;
+    if (antiCheatLoggedRef.current.has(key)) return;
+    antiCheatLoggedRef.current.add(key);
+    
+    try {
+      await fetch(`/api/student/attempts/${attemptId}/anti-cheat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ violationType, details, durationAway })
+      });
+    } catch (err) {
+      console.error('Failed to log anti-cheat violation:', err);
+    }
+  }, [attemptId]);
 
   const {
     violationCount,
@@ -521,10 +546,97 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
   } = useAntiCheat({
     enabled: true,
     maxViolations: 3,
-    onViolation: (count) => { console.log(`Violation ${count} detected`); },
-    onAutoSubmit: (reason: string) => { console.log(`Auto-submit: ${reason}`); handleSubmit(reason); },
-    onFullscreenExit: () => { console.log('Fullscreen exited'); }
+    onViolation: (count) => {
+      console.log(`Violation ${count} detected`);
+    },
+    onAutoSubmit: (reason: string) => {
+      console.log(`Auto-submit: ${reason}`);
+      handleSubmit(reason);
+    },
+    onFullscreenExit: () => {
+      console.log('Fullscreen exited');
+      setFullscreenViolations(prev => prev + 1);
+      logAntiCheatViolation('FULLSCREEN_EXIT', 'Student exited fullscreen mode');
+    }
   });
+
+  // Log tab switches in real-time
+  useEffect(() => {
+    if (!attemptId) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setTabSwitchCount(prev => prev + 1);
+        logAntiCheatViolation('TAB_SWITCH', 'Student switched to another tab');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [attemptId, logAntiCheatViolation]);
+
+  // Log focus loss (app switching)
+  useEffect(() => {
+    if (!attemptId) return;
+    
+    let blurTimer: NodeJS.Timeout;
+    
+    const handleBlur = () => {
+      blurTimer = setTimeout(() => {
+        logAntiCheatViolation('FOCUS_LOSS', 'Student clicked outside the browser window');
+      }, 3000); // Only log if away for 3+ seconds
+    };
+
+    const handleFocus = () => {
+      clearTimeout(blurTimer);
+    };
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      clearTimeout(blurTimer);
+    };
+  }, [attemptId, logAntiCheatViolation]);
+
+  // Log keyboard shortcuts and copy/paste
+  useEffect(() => {
+    if (!attemptId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 't' || e.key === 'u' || e.key === 's' || e.key === 'p')) ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        e.key === 'F12'
+      ) {
+        logAntiCheatViolation('KEYBOARD_SHORTCUT', `Prohibited shortcut: ${e.ctrlKey ? 'Ctrl+' : ''}${e.key}`);
+        setSuspiciousActivity(true);
+      }
+    };
+
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      logAntiCheatViolation('COPY_PASTE', 'Copy attempt detected');
+      setSuspiciousActivity(true);
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      logAntiCheatViolation('COPY_PASTE', 'Paste attempt detected');
+      setSuspiciousActivity(true);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [attemptId, logAntiCheatViolation]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -583,7 +695,15 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
       const response = await fetch(`/api/student/attempts/${attemptId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: answerList })
+        body: JSON.stringify({
+          answers: answerList,
+          antiCheatData: {
+            tabSwitchCount,
+            fullscreenViolations,
+            faceDetectionWarnings: faceWarnings,
+            suspiciousActivity
+          }
+        })
       });
 
       const data = await response.json();

@@ -13,7 +13,7 @@ export async function POST(
 
     const { attemptId } = await params
     const body = await request.json()
-    const { answers } = body
+    const { answers, antiCheatData } = body
 
     if (!answers || !Array.isArray(answers)) {
       return NextResponse.json({ error: 'Answers are required' }, { status: 400 })
@@ -42,6 +42,74 @@ export async function POST(
 
     if (attempt.status !== 'IN_PROGRESS') {
       return forbiddenResponse('Exam attempt is not in progress')
+    }
+
+    // Update anti-cheat violation counts if provided
+    if (antiCheatData) {
+      const updateData: any = {}
+
+      if (typeof antiCheatData.tabSwitchCount === 'number') {
+        updateData.tabSwitchCount = antiCheatData.tabSwitchCount
+      }
+      if (typeof antiCheatData.fullscreenViolations === 'number') {
+        updateData.fullscreenViolations = antiCheatData.fullscreenViolations
+      }
+      if (typeof antiCheatData.faceDetectionWarnings === 'number') {
+        updateData.faceDetectionWarnings = antiCheatData.faceDetectionWarnings
+      }
+      if (typeof antiCheatData.suspiciousActivity === 'boolean') {
+        updateData.suspiciousActivity = antiCheatData.suspiciousActivity
+      }
+
+      // Auto-detect suspicious activity if there are many violations
+      const totalViolations = (antiCheatData.tabSwitchCount || 0) + (antiCheatData.fullscreenViolations || 0)
+      if (totalViolations >= 3 && !updateData.suspiciousActivity) {
+        updateData.suspiciousActivity = true
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.examAttempt.update({
+          where: { id: attemptId },
+          data: updateData
+        })
+      }
+
+      // Log any remaining violation events that weren't already logged in real-time
+      // This checks if the client sent totals that are higher than what we have in the DB
+      const existingLogs = await prisma.antiCheatLog.count({
+        where: { attemptId }
+      })
+
+      if (existingLogs === 0 && totalViolations > 0) {
+        // Real-time logging was missed, create aggregated logs
+        const violationTypes = [
+          { type: 'TAB_SWITCH', count: antiCheatData.tabSwitchCount || 0 },
+          { type: 'FULLSCREEN_EXIT', count: antiCheatData.fullscreenViolations || 0 },
+          { type: 'FACE_ABSENT', count: antiCheatData.faceDetectionWarnings || 0 }
+        ]
+
+        for (const vt of violationTypes) {
+          if (vt.count > 0) {
+            await prisma.antiCheatLog.create({
+              data: {
+                attemptId,
+                violationType: vt.type,
+                details: `Logged at submission: ${vt.count} violation(s)`
+              }
+            })
+          }
+        }
+
+        // Also log to system log
+        await prisma.systemLog.create({
+          data: {
+            type: 'SECURITY',
+            action: 'ANTI_CHEAT_SUBMISSION',
+            userId: user.id,
+            details: `Anti-cheat violations recorded at submission: ${totalViolations} total (${antiCheatData.tabSwitchCount || 0} tab switches, ${antiCheatData.fullscreenViolations || 0} fullscreen exits)`
+          }
+        })
+      }
     }
 
     // Save each answer

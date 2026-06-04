@@ -64,6 +64,35 @@ interface GradingData {
   }
 }
 
+interface AntiCheatLogEntry {
+  id: string
+  attemptId: string
+  violationType: string
+  details: string | null
+  durationAway: number | null
+  createdAt: string
+}
+
+interface AntiCheatLogResponse {
+  logs: AntiCheatLogEntry[]
+  summary: {
+    totalViolations: number
+    byType: Record<string, number>
+    aggregateCounts: {
+      tabSwitchCount: number
+      fullscreenViolations: number
+      faceDetectionWarnings: number
+      suspiciousActivity: boolean
+    }
+    student: {
+      name: string
+      email: string
+      registrationNumber: string | null
+    }
+  }
+  timeDistribution: { window: number; count: number; types: string[] }[]
+}
+
 export default function SubmissionsGradingPage() {
   const [exams, setExams] = useState<Exam[]>([])
   const [attempts, setAttempts] = useState<Attempt[]>([])
@@ -77,6 +106,10 @@ export default function SubmissionsGradingPage() {
   const [finalizing, setFinalizing] = useState(false)
   const [gradingStatus, setGradingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [examFilter, setExamFilter] = useState<string>('all')
+  const [antiCheatLogs, setAntiCheatLogs] = useState<AntiCheatLogEntry[]>([])
+  const [antiCheatSummary, setAntiCheatSummary] = useState<AntiCheatLogResponse['summary'] | null>(null)
+  const [antiCheatTimeDist, setAntiCheatTimeDist] = useState<AntiCheatLogResponse['timeDistribution']>([])
+  const [showViolationTimeline, setShowViolationTimeline] = useState(false)
 
   useEffect(() => {
     fetchExams()
@@ -180,6 +213,10 @@ export default function SubmissionsGradingPage() {
     setGradingData(null)
     setGradingMarks({})
     setGradingStatus(null)
+    setAntiCheatLogs([])
+    setAntiCheatSummary(null)
+    setAntiCheatTimeDist([])
+    setShowViolationTimeline(false)
     setShowGradingPanel(true)
 
     if (attempt.id.startsWith('absent-')) return
@@ -200,6 +237,21 @@ export default function SubmissionsGradingPage() {
       }
     } catch (e) {
       console.error('Error fetching grading data:', e)
+    }
+  }
+
+  const fetchAntiCheatLogs = async (attemptId: string) => {
+    try {
+      const res = await fetch(`/api/lecturer/grading/${attemptId}/anti-cheat`)
+      const data = await res.json()
+      if (data.success) {
+        setAntiCheatLogs(data.logs)
+        setAntiCheatSummary(data.summary)
+        setAntiCheatTimeDist(data.timeDistribution || [])
+        setShowViolationTimeline(data.logs.length > 0)
+      }
+    } catch (e) {
+      console.error('Error fetching anti-cheat logs:', e)
     }
   }
 
@@ -525,7 +577,173 @@ export default function SubmissionsGradingPage() {
                       </p>
                     </div>
                   </div>
+                  {selectedStudent.tabSwitchCount > 0 || selectedStudent.fullscreenViolations > 0 || selectedStudent.faceDetectionWarnings > 0 || selectedStudent.suspiciousActivity ? (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
+                        onClick={() => fetchAntiCheatLogs(selectedStudent.id)}
+                      >
+                        <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                        View Detailed Violation Timeline
+                        {antiCheatLogs.length > 0 && (
+                          <span className="ml-1.5 text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">
+                            {antiCheatLogs.length}
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-center">
+                      <p className="text-xs text-muted-foreground">No violations recorded for this student</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Violation Timeline Dialog */}
+                {showViolationTimeline && antiCheatLogs.length > 0 && (
+                  <Dialog open={showViolationTimeline} onOpenChange={setShowViolationTimeline}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <ShieldAlert className="h-5 w-5 text-destructive" />
+                          Anti-Cheat Violation Timeline
+                        </DialogTitle>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4">
+                        {/* Summary Stats */}
+                        {antiCheatSummary && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="bg-destructive/5 rounded-lg p-3 text-center border border-destructive/10">
+                              <p className="text-2xl font-bold text-destructive">{antiCheatSummary.totalViolations}</p>
+                              <p className="text-[10px] text-muted-foreground">Total Violations</p>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center border border-amber-200">
+                              <p className="text-2xl font-bold text-amber-600">{antiCheatSummary.byType['TAB_SWITCH'] || 0}</p>
+                              <p className="text-[10px] text-muted-foreground">Tab Switches</p>
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center border border-red-200">
+                              <p className="text-2xl font-bold text-red-600">{antiCheatSummary.byType['FULLSCREEN_EXIT'] || 0}</p>
+                              <p className="text-[10px] text-muted-foreground">Fullscreen Exits</p>
+                            </div>
+                            <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-200">
+                              <p className="text-2xl font-bold text-purple-600">{antiCheatSummary.byType['KEYBOARD_SHORTCUT'] || 0}</p>
+                              <p className="text-[10px] text-muted-foreground">Shortcuts</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Violation Type Legend */}
+                        <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Tab Switch
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Fullscreen Exit
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Focus Loss
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-purple-500" /> Keyboard Shortcut
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-orange-500" /> Copy/Paste
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-slate-500" /> Face Absent
+                          </span>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="relative space-y-0">
+                          {antiCheatLogs.map((log, index) => {
+                            const time = new Date(log.createdAt)
+                            const timeStr = time.toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit'
+                            })
+                            
+                            let dotColor = 'bg-slate-500'
+                            let label = 'Unknown'
+                            let icon = <AlertTriangle className="h-3.5 w-3.5" />
+                            
+                            switch (log.violationType) {
+                              case 'TAB_SWITCH':
+                                dotColor = 'bg-amber-500'
+                                label = 'Tab Switch'
+                                icon = <Monitor className="h-3.5 w-3.5" />
+                                break
+                              case 'FULLSCREEN_EXIT':
+                                dotColor = 'bg-red-500'
+                                label = 'Fullscreen Exit'
+                                icon = <Minimize2 className="h-3.5 w-3.5" />
+                                break
+                              case 'FOCUS_LOSS':
+                                dotColor = 'bg-blue-500'
+                                label = 'Focus Loss'
+                                icon = <UserX className="h-3.5 w-3.5" />
+                                break
+                              case 'KEYBOARD_SHORTCUT':
+                                dotColor = 'bg-purple-500'
+                                label = 'Prohibited Shortcut'
+                                icon = <AlertOctagon className="h-3.5 w-3.5" />
+                                break
+                              case 'COPY_PASTE':
+                                dotColor = 'bg-orange-500'
+                                label = 'Copy/Paste Attempt'
+                                icon = <AlertOctagon className="h-3.5 w-3.5" />
+                                break
+                              case 'RIGHT_CLICK':
+                                dotColor = 'bg-pink-500'
+                                label = 'Right Click'
+                                icon = <AlertTriangle className="h-3.5 w-3.5" />
+                                break
+                              case 'FACE_ABSENT':
+                                dotColor = 'bg-slate-500'
+                                label = 'Face Not Visible'
+                                icon = <UserX className="h-3.5 w-3.5" />
+                                break
+                            }
+
+                            return (
+                              <div key={log.id} className="flex gap-3 pb-4">
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-3 h-3 rounded-full ${dotColor} ring-2 ring-background z-10 flex-shrink-0`} />
+                                  {index < antiCheatLogs.length - 1 && (
+                                    <div className="w-0.5 flex-1 bg-border mt-1" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`text-xs font-semibold ${dotColor.replace('bg-', 'text-')}`}>
+                                        {icon}
+                                      </span>
+                                      <span className="text-sm font-medium text-foreground">{label}</span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground font-mono">{timeStr}</span>
+                                  </div>
+                                  {log.details && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">{log.details}</p>
+                                  )}
+                                  {log.durationAway && (
+                                    <p className="text-[10px] text-destructive mt-0.5">
+                                      Away for {log.durationAway} seconds
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
 
                 {/* Status message */}
                 {gradingStatus && (

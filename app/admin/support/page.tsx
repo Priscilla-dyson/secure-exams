@@ -58,7 +58,7 @@ export default function SupportPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-end">
         <Button variant="outline" onClick={fetchTickets}>
           <RefreshCw className="w-4 h-4 mr-2" />

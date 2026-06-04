@@ -90,7 +90,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           {data.todayLogEntries} activities today · {data.totalLogEntries} total system events
@@ -119,9 +119,9 @@ export default function AdminDashboard() {
         ))}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Left Column - Recent Logins */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Recent Logins */}
           <section>
             <div className="mb-3 flex items-baseline justify-between">
@@ -249,7 +249,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Right Column */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* System Status */}
           <section>
             <div className="mb-3 flex items-baseline justify-between">

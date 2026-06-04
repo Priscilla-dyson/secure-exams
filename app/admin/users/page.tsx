@@ -244,7 +244,7 @@ export default function UserManagement() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header Actions */}
       <div className="flex items-center justify-end">
         <Button onClick={() => {
@@ -258,14 +258,14 @@ export default function UserManagement() {
       </div>
 
       {/* Search */}
-      <Card className="p-4">
+      <Card className="p-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 text-muted-foreground -translate-y-1/2" />
           <Input
             placeholder="Search by name, email, or user ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-10 w-full max-w-md rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground"
+            className="pl-10 h-9 w-full max-w-md rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground"
           />
         </div>
       </Card>
@@ -299,27 +299,15 @@ export default function UserManagement() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Name / Email
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  User ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Role
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Name / Email</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">User ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Role</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {activeRole === 'LECTURER' ? 'Assigned Modules' : 'Class'}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Created
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Actions
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Created</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -478,7 +466,7 @@ export default function UserManagement() {
               </button>
             </div>
             <div className="space-y-4">
-                    <div>
+              <div>
                 <label className="text-sm font-medium text-foreground">User ID *</label>
                 <Input
                   className="mt-1"

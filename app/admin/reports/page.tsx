@@ -99,7 +99,7 @@ export default function ReportsAndResults() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header Actions */}
       <div className="flex items-center justify-end">
         <Button variant="outline" onClick={handleExportCSV} disabled={!data}>

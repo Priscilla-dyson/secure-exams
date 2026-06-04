@@ -226,6 +226,7 @@ model ExamAttempt {
   // Relations
   answers     StudentAnswer[]
   result      Result?
+  antiCheatLogs AntiCheatLog[]
 
   @@index([examId])
   @@index([studentId])
@@ -289,6 +290,19 @@ model Announcement {
   updatedAt       DateTime @updatedAt
 
   @@index([authorId])
+}
+
+model AntiCheatLog {
+  id            String      @id @default(cuid())
+  attemptId     String
+  attempt       ExamAttempt @relation(fields: [attemptId], references: [id])
+  violationType String      // TAB_SWITCH, FULLSCREEN_EXIT, FOCUS_LOSS, KEYBOARD_SHORTCUT, COPY_PASTE, RIGHT_CLICK, FACE_ABSENT
+  details       String?
+  durationAway  Int?        // Duration in seconds the student was away
+  createdAt     DateTime    @default(now())
+
+  @@index([attemptId])
+  @@index([createdAt])
 }
 
 model SystemLog {

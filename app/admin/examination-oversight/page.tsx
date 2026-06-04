@@ -1,4 +1,4 @@
-'use client'
+ 'use client'
 
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
@@ -95,7 +95,7 @@ export default function ExaminationOversight() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Refresh Button */}
       <div className="flex items-center justify-end">
         <button
