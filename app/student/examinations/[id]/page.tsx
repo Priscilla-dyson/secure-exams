@@ -65,6 +65,9 @@ export default function ExamPaperPage() {
   useEffect(() => {
     startExam();
   }, [examId]);
+  
+  const attemptIdRef = useRef<string | null>(null);
+  attemptIdRef.current = attemptId;
 
   const startExam = async () => {
     try {
@@ -518,6 +521,24 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
   const [suspiciousActivity, setSuspiciousActivity] = useState(false);
   const antiCheatLoggedRef = useRef<Set<string>>(new Set());
 
+  // Refs to avoid stale closures in timer and anti-cheat callbacks
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+  const tabSwitchCountRef = useRef(tabSwitchCount);
+  tabSwitchCountRef.current = tabSwitchCount;
+  const fullscreenViolationsRef = useRef(fullscreenViolations);
+  fullscreenViolationsRef.current = fullscreenViolations;
+  const faceWarningsRef = useRef(faceWarnings);
+  faceWarningsRef.current = faceWarnings;
+  const suspiciousActivityRef = useRef(suspiciousActivity);
+  suspiciousActivityRef.current = suspiciousActivity;
+  const submittingRef = useRef(submitting);
+  submittingRef.current = submitting;
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
   // Send anti-cheat violation to server
   const logAntiCheatViolation = useCallback(async (violationType: string, details?: string, durationAway?: number) => {
     if (!attemptId) return;
@@ -537,6 +558,58 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
       console.error('Failed to log anti-cheat violation:', err);
     }
   }, [attemptId]);
+
+  const handleSubmit = useCallback(async (reason?: string) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+
+    try {
+      const currentAnswers = answersRef.current;
+      const currentDrawings = drawingsRef.current;
+      const answerList = examData.questions.map((question) => {
+        if (question.type === "MULTIPLE_CHOICE") {
+          const selectedIdx = parseInt(currentAnswers[question.id] || "-1", 10);
+          const selectedOption = question.options?.[selectedIdx];
+          return { questionId: question.id, selectedOptionId: selectedOption?.id || "", text: "" };
+        }
+        if (question.type === "DRAWING") {
+          return { questionId: question.id, text: "", drawingImage: currentDrawings[question.id] || "" };
+        }
+        if (question.type === "MATH") {
+          return { questionId: question.id, text: String(currentAnswers[question.id] || "") };
+        }
+        return { questionId: question.id, text: String(currentAnswers[question.id] || "") };
+      });
+
+      const response = await fetch(`/api/student/attempts/${attemptId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers: answerList,
+          antiCheatData: {
+            tabSwitchCount: tabSwitchCountRef.current,
+            fullscreenViolations: fullscreenViolationsRef.current,
+            faceDetectionWarnings: faceWarningsRef.current,
+            suspiciousActivity: suspiciousActivityRef.current
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        onSubmitRef.current();
+      } else {
+        console.error('Submit error:', data.error);
+        setSubmitting(false);
+        submittingRef.current = false;
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      setSubmitting(false);
+      submittingRef.current = false;
+    }
+  }, [examData, attemptId]);
 
   const {
     violationCount,
@@ -584,7 +657,7 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     const handleBlur = () => {
       blurTimer = setTimeout(() => {
         logAntiCheatViolation('FOCUS_LOSS', 'Student clicked outside the browser window');
-      }, 3000); // Only log if away for 3+ seconds
+      }, 3000);
     };
 
     const handleFocus = () => {
@@ -638,12 +711,16 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     };
   }, [attemptId, logAntiCheatViolation]);
 
+  // Timer - uses ref-based handleSubmit to avoid stale closures
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+  
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
           clearInterval(timer);
-          handleSubmit("Time expired");
+          handleSubmitRef.current("Time expired");
           return 0;
         }
         return s - 1;
@@ -671,53 +748,6 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     if (s.has(q.id)) s.delete(q.id); else s.add(q.id);
     setFlagged(s);
   }
-
-  const handleSubmit = async (reason?: string) => {
-    if (submitting) return;
-    setSubmitting(true);
-
-    try {
-      const answerList = examData.questions.map((question) => {
-        if (question.type === "MULTIPLE_CHOICE") {
-          const selectedIdx = parseInt(answers[question.id] || "-1", 10);
-          const selectedOption = question.options?.[selectedIdx];
-          return { questionId: question.id, selectedOptionId: selectedOption?.id || "", text: "" };
-        }
-        if (question.type === "DRAWING") {
-          return { questionId: question.id, text: "", drawingImage: drawings[question.id] || "" };
-        }
-        if (question.type === "MATH") {
-          return { questionId: question.id, text: String(answers[question.id] || "") };
-        }
-        return { questionId: question.id, text: String(answers[question.id] || "") };
-      });
-
-      const response = await fetch(`/api/student/attempts/${attemptId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          answers: answerList,
-          antiCheatData: {
-            tabSwitchCount,
-            fullscreenViolations,
-            faceDetectionWarnings: faceWarnings,
-            suspiciousActivity
-          }
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        onSubmit();
-      } else {
-        console.error('Submit error:', data.error);
-        setSubmitting(false);
-      }
-    } catch (err) {
-      console.error('Submit error:', err);
-      setSubmitting(false);
-    }
-  };
 
   if (!q) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">No questions available</p></div>;

@@ -17,7 +17,12 @@ import {
   Loader2,
   X,
   Eye,
-  BookOpen
+  BookOpen,
+  Upload,
+  Download,
+  FileText,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react'
 
 type UserRole = 'STUDENT' | 'LECTURER' | 'ADMIN'
@@ -72,7 +77,9 @@ export default function UserManagement() {
     name: '',
     email: '',
     role: 'STUDENT' as UserRole,
-    classId: ''
+    classId: '',
+    department: '',
+    isHod: false
   })
 
   // Fetch users
@@ -135,7 +142,7 @@ export default function UserManagement() {
       if (data.success) {
         fetchUsers()
         setShowModal(null)
-        setForm({ userId: '', name: '', email: '', role: 'STUDENT', classId: '' })
+        setForm({ userId: '', name: '', email: '', role: 'STUDENT', classId: '', department: '', isHod: false })
       } else {
         alert(data.error || 'Failed to create user')
       }
@@ -153,7 +160,9 @@ export default function UserManagement() {
       name: user.name,
       email: user.email || '',
       role: user.role,
-      classId: user.class?.id || ''
+      classId: user.class?.id || '',
+      department: (user as any).department || '',
+      isHod: (user as any).isHod || false
     })
     setShowModal('edit')
   }
@@ -170,7 +179,9 @@ export default function UserManagement() {
           name: form.name,
           email: form.email,
           role: form.role,
-          classId: form.classId
+          classId: form.classId,
+          department: form.department,
+          isHod: form.isHod
         })
       })
       const data = await res.json()
@@ -202,6 +213,57 @@ export default function UserManagement() {
       console.error('Delete error:', err)
       alert('Failed to delete user')
     }
+  }
+
+  // CSV Import
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importRole, setImportRole] = useState<UserRole>('STUDENT')
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{
+    imported: number
+    errors: { row: number; message: string; data?: string }[]
+  } | null>(null)
+
+  const handleImport = async () => {
+    if (!importFile) {
+      alert('Please select a CSV file')
+      return
+    }
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+      formData.append('role', importRole)
+      const res = await fetch('/api/admin/users/import', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
+        setImportResult({
+          imported: data.imported,
+          errors: data.errors || []
+        })
+        fetchUsers()
+      } else {
+        alert(data.error || 'Import failed')
+      }
+    } catch (err) {
+      console.error('Import error:', err)
+      alert('Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const downloadTemplate = (type: 'student' | 'lecturer') => {
+    window.open(`/api/admin/users/import/template?type=${type}`, '_blank')
+  }
+
+  const exportUsers = (type: 'students' | 'lecturers') => {
+    window.open(`/api/admin/users/export?type=${type}`, '_blank')
   }
 
   // Reset password
@@ -246,9 +308,37 @@ export default function UserManagement() {
   return (
     <div className="space-y-4">
       {/* Header Actions */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" onClick={() => setShowImportModal(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import CSV
+        </Button>
+        <div className="relative group">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block min-w-[180px]">
+            <div className="rounded-md border border-border bg-background shadow-lg py-1">
+              <button
+                onClick={() => exportUsers('students')}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent flex items-center gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Export Students
+              </button>
+              <button
+                onClick={() => exportUsers('lecturers')}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent flex items-center gap-2"
+              >
+                <UserCheck className="h-4 w-4" />
+                Export Lecturers
+              </button>
+            </div>
+          </div>
+        </div>
         <Button onClick={() => {
-          setForm({ userId: '', name: '', email: '', role: activeRole, classId: '' })
+          setForm({ userId: '', name: '', email: '', role: activeRole, classId: '', department: '', isHod: false })
           setEditingUser(null)
           setShowModal('create')
         }}>
@@ -453,6 +543,113 @@ export default function UserManagement() {
         </div>
       )}
 
+      {/* CSV Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg rounded-md border border-border bg-background p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Import Users from CSV</h3>
+              <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}>
+                <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+              </button>
+            </div>
+
+            {importResult ? (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-md border ${importResult.imported > 0 ? 'bg-success/10 border-success/20' : 'bg-warning/10 border-warning/20'}`}>
+                  <div className="flex items-center gap-3">
+                    {importResult.imported > 0 ? (
+                      <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {importResult.imported > 0 ? `Successfully imported ${importResult.imported} user(s)` : 'No users were imported'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {importResult.errors.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">{importResult.errors.length} error(s):</p>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {importResult.errors.map((err, idx) => (
+                        <div key={idx} className="text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/10">
+                          <span className="font-semibold">Row {err.row}:</span> {err.message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2 border-t border-border">
+                  <Button onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}>
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 rounded-md bg-muted/30 border border-border">
+                  <p className="text-sm font-medium text-foreground mb-2">CSV Format Requirements</p>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {importRole === 'STUDENT' ? (
+                      <>
+                        <p>Required columns: <strong>studentid, fullname, email, class</strong></p>
+                        <p>Class must match an existing class name (e.g., "ICT Year 1")</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>Required columns: <strong>employeeid, fullname, email, modules</strong></p>
+                        <p>Modules should be semicolon-separated module codes (e.g., COS101;DBT301)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Import for</label>
+                  <select
+                    value={importRole}
+                    onChange={(e) => { setImportRole(e.target.value as UserRole); setImportFile(null); setImportResult(null) }}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="STUDENT">Students</option>
+                    <option value="LECTURER">Lecturers</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Select CSV File</label>
+                  <Input
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Only .csv files are accepted</p>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2 border-t border-border">
+                  <Button variant="outline" onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}>
+                    Cancel
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => downloadTemplate(importRole === 'STUDENT' ? 'student' : 'lecturer')}>
+                    <Download className="h-4 w-4 mr-1" /> Download Template
+                  </Button>
+                  <Button onClick={handleImport} disabled={!importFile || importing}>
+                    {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                    Import
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Create / Edit User Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -522,9 +719,37 @@ export default function UserManagement() {
                   </select>
                 </div>
               )}
+              {form.role === 'LECTURER' && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Department</label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. ICT, Nursing, Business"
+                      value={form.department}
+                      onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for HOD assignments. Enter the department name this lecturer belongs to.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isHod"
+                      checked={form.isHod}
+                      onChange={(e) => setForm({ ...form, isHod: e.target.checked })}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    <label htmlFor="isHod" className="text-sm font-medium text-foreground">
+                      Head of Department (HOD)
+                    </label>
+                  </div>
+                </>
+              )}
               {showModal === 'create' && (
                 <p className="text-xs text-muted-foreground">
-                  Default password: <strong>changeme123</strong> — user must change on first login
+                  Default password: <strong>changeme123</strong> — users can change password from their profile.
                 </p>
               )}
               <div className="flex gap-2 justify-end mt-6">

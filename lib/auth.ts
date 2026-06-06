@@ -8,6 +8,8 @@ export interface JWTPayload {
   userId: string
   email: string
   role: string
+  department?: string
+  isHod?: boolean
 }
 
 export interface AuthUser {
@@ -17,6 +19,8 @@ export interface AuthUser {
   role: string
   classId: string | null
   programId: string | null
+  department: string | null
+  isHod: boolean
   mustChangePassword?: boolean
 }
 
@@ -66,6 +70,8 @@ export const loginUser = async (email: string, password: string): Promise<AuthUs
     role: user.role,
     classId: user.classId,
     programId: user.programId,
+    department: null,
+    isHod: false,
     mustChangePassword: user.mustChangePassword
   }
 }
@@ -92,6 +98,8 @@ export const loginByUserId = async (userId: string, password: string): Promise<A
     role: user.role,
     classId: user.classId,
     programId: user.programId,
+    department: null,
+    isHod: false,
     mustChangePassword: user.mustChangePassword
   }
 }
@@ -106,7 +114,8 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
       name: true,
       role: true,
       classId: true,
-      programId: true
+      programId: true,
+      isHod: true
     }
   })
 
@@ -120,7 +129,9 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
     name: user.name,
     role: user.role,
     classId: user.classId,
-    programId: user.programId
+    programId: user.programId,
+    department: null,
+    isHod: false
   }
 }
 
@@ -136,4 +147,8 @@ export const getDashboardRoute = (role: string): string => {
     admin: '/admin/dashboard',
   }
   return routes[role] || '/student/dashboard'
+}
+
+export function getHodDashboardRoute(department: string): string {
+  return `/lecturer/dashboard?hod=${encodeURIComponent(department)}`
 }

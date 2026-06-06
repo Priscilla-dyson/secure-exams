@@ -72,9 +72,47 @@ export async function GET(
     // Build a map of student IDs that have attempted
     const attemptedStudentIds = new Set(attempts.map(a => a.studentId))
 
+    // Deduplicate attempts - if a student has multiple attempts, keep only the most recent significant one
+    // Priority: GRADED > SUBMITTED > IN_PROGRESS
+    const deduplicatedAttempts: typeof attempts = []
+    const studentAttemptMap = new Map<string, typeof attempts[0]>()
+    
+    for (const attempt of attempts) {
+      const existing = studentAttemptMap.get(attempt.studentId)
+      if (!existing) {
+        studentAttemptMap.set(attempt.studentId, attempt)
+      } else {
+        // Priority: GRADED > SUBMITTED > IN_PROGRESS
+        const priorityOrder: Record<string, number> = { 'GRADED': 3, 'SUBMITTED': 2, 'IN_PROGRESS': 1, 'ABSENT': 0 }
+        const existingPriority = priorityOrder[existing.status] || 0
+        const newPriority = priorityOrder[attempt.status] || 0
+        if (newPriority > existingPriority) {
+          studentAttemptMap.set(attempt.studentId, attempt)
+        }
+        // If the old (duplicate) IN_PROGRESS attempt is being replaced by a SUBMITTED/GRADED one,
+        // also clean up the IN_PROGRESS attempt's anti-cheat logs to avoid orphaned data
+        if (newPriority > existingPriority && existing.status === 'IN_PROGRESS') {
+          try {
+            // Delete the old IN_PROGRESS attempt since there's a newer submitted one
+            await prisma.examAttempt.deleteMany({
+              where: {
+                id: existing.id,
+                status: 'IN_PROGRESS'
+              }
+            })
+          } catch (e) {
+            // Non-critical cleanup, ignore errors
+          }
+        }
+      }
+    }
+    
+    deduplicatedAttempts.push(...studentAttemptMap.values())
+
     // Add students who haven't attempted as "absent" entries
+    const presentStudentIds = new Set(deduplicatedAttempts.map(a => a.studentId))
     const absentStudents = studentsInClass
-      .filter(s => !attemptedStudentIds.has(s.id))
+      .filter(s => !presentStudentIds.has(s.id))
       .map(s => ({
         id: `absent-${s.id}`,
         examId,
@@ -100,7 +138,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      attempts: [...attempts, ...absentStudents],
+      attempts: [...deduplicatedAttempts, ...absentStudents],
       className: exam.module.class?.name || 'Unknown'
     })
   } catch (error) {

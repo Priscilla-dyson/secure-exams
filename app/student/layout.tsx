@@ -34,7 +34,7 @@ export default async function StudentLayout({
   await requireStudentAuth()
 
   return (
-    <SidebarLayout userRole="student" showHeader={false}>
+    <SidebarLayout userRole="student">
       {children}
     </SidebarLayout>
   )

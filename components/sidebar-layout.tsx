@@ -33,7 +33,9 @@ import {
   FileQuestion,
   FileBarChart,
   Eye,
-  ShieldCheck
+  ShieldCheck,
+  Library,
+  ShieldAlert
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +43,7 @@ import { Input } from '@/components/ui/input'
 interface SidebarLayoutProps {
   children: React.ReactNode
   userRole: 'student' | 'lecturer' | 'admin'
-  showHeader?: boolean
+  isHod?: boolean
 }
 
 // Navigation items with icons
@@ -65,43 +67,23 @@ const adminNavItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/examination-oversight', label: 'Examination Oversight', icon: ClipboardList },
-  { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/admin/reports', label: 'Reports & Results', icon: BarChart3 },
   { href: '/admin/academic-structure', label: 'Academic Structure', icon: Building2 },
   { href: '/admin/support', label: 'Support', icon: HelpCircle },
 ]
 
-// Get page title from pathname
-const getPageTitle = (pathname: string, userRole: string) => {
-  if (pathname.includes('/dashboard')) return 'Dashboard'
-  if (pathname.includes('/exam-management')) return 'Exam Management'
-  if (pathname.includes('/submissions')) return 'Submissions & Grading'
+const hodNavItems = [
+  { href: '/lecturer/dashboard?hod=true', label: 'Department Overview', icon: Building2 },
+  { href: '/lecturer/department-management', label: 'Department Lecturers', icon: Users },
+  { href: '/lecturer/department-exams', label: 'Department Exams', icon: ClipboardList },
+  { href: '/lecturer/department-results', label: 'Department Results', icon: BarChart3 },
+  { href: '/lecturer/department-integrity', label: 'Exam Integrity', icon: ShieldAlert },
+]
 
-  if (pathname.includes('/results')) return 'Results & Reports'
-  if (pathname.includes('/profile')) return 'Profile'
-  if (pathname.includes('/settings')) return 'Settings'
-  if (pathname.includes('/users')) return 'User Management'
-  if (pathname.includes('/academic-structure')) return 'Academic Structure'
-  if (pathname.includes('/examination-oversight')) return 'Examination Oversight'
-  if (pathname.includes('/reports')) return 'Reports & Results'
-  return 'Dashboard'
-}
-
-// Get page subtitle based on role and page
-const getPageSubtitle = (pathname: string, userRole: string) => {
-  if (userRole === 'student') return 'Manage your exams and view results'
-  if (userRole === 'lecturer') {
-    if (pathname.includes('/exam-management')) return 'Create and manage examinations for your modules'
-    if (pathname.includes('/submissions')) return 'Review and grade student submissions'
-    if (pathname.includes('/question-bank')) return 'Build and manage your question library'
-    if (pathname.includes('/results')) return 'View exam results and analytics'
-    return 'Create exams, grade submissions, and manage courses'
-  }
-  return 'Manage users, courses, and system settings'
-}
-
-export function SidebarLayout({ children, userRole, showHeader = true }: SidebarLayoutProps) {
+export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [isHodUser, setIsHodUser] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -109,10 +91,16 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('currentUser')
       if (storedUser) {
-        setUser(JSON.parse(storedUser))
+        const parsed = JSON.parse(storedUser)
+        setUser(parsed)
+        // Only show HOD pages if user is LECTURER role AND has isHod=true
+        setIsHodUser(parsed.role === 'LECTURER' && parsed.isHod === true)
       }
     }
   }, [])
+
+  // Use prop isHod as fallback, but prefer localStorage value
+  const effectiveIsHod = isHodUser || (isHod && userRole === 'lecturer') || false
 
   const handleLogout = async () => {
     try {
@@ -131,9 +119,6 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
     : userRole === 'lecturer' 
       ? lecturerNavItems 
       : adminNavItems
-
-  const pageTitle = getPageTitle(pathname, userRole)
-  const pageSubtitle = getPageSubtitle(pathname, userRole)
 
   // NavItem Component
   const NavItem = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
@@ -180,7 +165,9 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-foreground">{user?.name || 'User'}</p>
-                <p className="text-xs text-onSurface-variant capitalize">{userRole}</p>
+                <p className="text-xs text-onSurface-variant capitalize">
+                  {userRole}{effectiveIsHod ? ' • HOD' : ''}
+                </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-sm font-semibold text-white">
@@ -220,6 +207,18 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
               {navItems.map((item) => (
                 <NavItem key={item.href} href={item.href} icon={item.icon} label={item.label} />
               ))}
+              {effectiveIsHod && (
+                <>
+                  <div className="pt-4 pb-1">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      HOD Management
+                    </p>
+                  </div>
+                  {hodNavItems.map((item) => (
+                    <NavItem key={item.href} href={item.href} icon={item.icon} label={item.label} />
+                  ))}
+                </>
+              )}
             </nav>
             
             {/* Logout Button */}
@@ -245,20 +244,6 @@ export function SidebarLayout({ children, userRole, showHeader = true }: Sidebar
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
-          {/* Page Header */}
-          {showHeader && (
-            <div className="border-b border-border bg-surface-container-lowest px-6 py-5 lg:px-8">
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-1">
-                  {pageTitle}
-                </h1>
-                <p className="text-body-sm text-onSurface-variant">
-                  {pageSubtitle}
-                </p>
-              </div>
-            </div>
-          )}
-          
           {/* Page Content - reduced padding for compactness */}
           <div className="p-4 lg:p-6">
             {children}

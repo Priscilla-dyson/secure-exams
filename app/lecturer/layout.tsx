@@ -34,7 +34,7 @@ export default async function LecturerLayout({
   await requireLecturerAuth()
 
   return (
-    <SidebarLayout userRole="lecturer" showHeader={false}>
+    <SidebarLayout userRole="lecturer">
       {children}
     </SidebarLayout>
   )

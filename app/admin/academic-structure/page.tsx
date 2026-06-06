@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
+import {
   GraduationCap,
   Plus,
   Edit2,
@@ -18,7 +18,8 @@ import {
   ToggleLeft,
   ToggleRight,
   UserCheck,
-  Users
+  Users,
+  Download
 } from 'lucide-react'
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -523,6 +524,12 @@ export default function AcademicStructure() {
     )
   }
 
+  // ─── EXPORT ──────────────────────────────────────────────────────────────────
+
+  const exportData = (type: string) => {
+    window.open(`/api/admin/export?type=${type}`, '_blank')
+  }
+
   // ─── TABS ──────────────────────────────────────────────────────────────────
 
   const tabs = [
@@ -536,7 +543,35 @@ export default function AcademicStructure() {
   return (
     <div className="space-y-4">
       {/* Action buttons — title is rendered by sidebar layout */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <div className="relative group">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block min-w-[160px]">
+            <div className="rounded-md border border-border bg-background shadow-lg py-1">
+              <button
+                onClick={() => exportData('programs')}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent"
+              >
+                Programs
+              </button>
+              <button
+                onClick={() => exportData('modules')}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent"
+              >
+                Modules
+              </button>
+              <button
+                onClick={() => exportData('classes')}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent"
+              >
+                Classes
+              </button>
+            </div>
+          </div>
+        </div>
         {activeTab === 'programs' && (
           <Button onClick={() => { setShowAddProgram(true); setProgramName('') }}>
             <Plus className="w-4 h-4 mr-2" /> Add Program
@@ -713,7 +748,7 @@ export default function AcademicStructure() {
                 <Input
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  placeholder="e.g. Database Systems"
+                  placeholder="e.g. Computer Networks"
                   autoFocus
                 />
               </div>
@@ -722,12 +757,9 @@ export default function AcademicStructure() {
                 <Input
                   value={moduleCode}
                   onChange={(e) => setModuleCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. COS101, DBT301, MAT201"
+                  placeholder="e.g. BScICT 1101"
                   className="font-mono"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  A unique code for this module (e.g. COS101). Auto-converted to uppercase.
-                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Program *</label>

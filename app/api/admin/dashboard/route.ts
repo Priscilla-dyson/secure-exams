@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const totalLecturers = await prisma.user.count({ where: { role: 'LECTURER' } })
     const totalExams = await prisma.exam.count()
     const activeExams = await prisma.exam.count({ where: { status: 'ACTIVE' } })
+    const publishedExams = await prisma.exam.count({ where: { published: true } })
     const totalClasses = await prisma.class.count()
     const totalModules = await prisma.module.count()
     const totalResults = await prisma.result.count()
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
         totalLecturers,
         totalExams,
         activeExams,
+        publishedExams,
         totalClasses,
         totalModules,
         totalResults,

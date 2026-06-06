@@ -65,30 +65,38 @@ export default function ReportsAndResults() {
   const handleExportCSV = () => {
     if (!data) return
 
-    let csv = ''
     const filename = `${activeTab}-report.csv`
+    let csv = '\uFEFF' // BOM for Excel
 
     if (activeTab === 'examination') {
-      csv = 'Metric,Value\n' +
-        data.stats.map((s: any) => `${s.title},${s.value}`).join('\n')
+      const headers = 'Metric,Value'
+      const rows = data.stats.map((s: any) => {
+        const val = String(s.value)
+        return `${s.title},${val.includes(',') ? `"${val}"` : val}`
+      }).join('\r\n')
+      csv += `${headers}\r\n${rows}`
     } else if (activeTab === 'student') {
-      csv = 'Name,Email,Total Exams,Passed,Failed,Average Score\n' +
-        data.students.map((s: StudentPerf) =>
-          `"${s.name}","${s.email}",${s.totalExams},${s.passed},${s.failed},${s.avgScore}`
-        ).join('\n')
+      const headers = 'Name,Email,Total Exams,Passed,Failed,Average Score'
+      const rows = data.students.map((s: StudentPerf) =>
+        `"${s.name}","${s.email}",${s.totalExams},${s.passed},${s.failed},${s.avgScore}`
+      ).join('\r\n')
+      csv += `${headers}\r\n${rows}`
     } else if (activeTab === 'integrity') {
-      csv = 'Student,Exam,Tab Switches,Fullscreen Violations,Face Warnings\n' +
-        (data.incidents || []).map((i: Incident) =>
-          `"${i.student.name}","${i.exam.title}",${i.tabSwitchCount},${i.fullscreenViolations},${i.faceDetectionWarnings}`
-        ).join('\n')
+      const headers = 'Student,Exam,Tab Switches,Fullscreen Violations,Face Warnings'
+      const rows = (data.incidents || []).map((i: Incident) =>
+        `"${i.student.name}","${i.exam.title}",${i.tabSwitchCount},${i.fullscreenViolations},${i.faceDetectionWarnings}`
+      ).join('\r\n')
+      csv += `${headers}\r\n${rows}`
     }
 
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = filename
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 

@@ -38,7 +38,9 @@ export async function POST(request: NextRequest) {
     const token = generateToken({
       userId: user.id,
       email,
-      role: user.role
+      role: user.role,
+      department: user.department || undefined,
+      isHod: user.isHod
     })
 
     // Log successful login
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
         role: user.role,
         classId: user.classId,
         programId: user.programId,
+        department: user.department,
+        isHod: user.isHod,
         mustChangePassword: user.mustChangePassword
       },
       token

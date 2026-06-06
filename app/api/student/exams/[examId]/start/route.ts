@@ -46,15 +46,68 @@ export async function POST(
       return forbiddenResponse('Exam has ended')
     }
 
+    // Check for existing attempts - using a transaction to prevent race conditions
     const existingAttempt = await prisma.examAttempt.findFirst({
       where: {
         examId,
         studentId: user.id
-      }
+      },
+      orderBy: { startedAt: 'desc' }
     })
 
     if (existingAttempt) {
-      return forbiddenResponse('You have already attempted this exam')
+      // If there's already a submitted/graded attempt, don't allow another
+      if (existingAttempt.status === 'SUBMITTED' || existingAttempt.status === 'GRADED') {
+        return forbiddenResponse('You have already submitted this exam')
+      }
+      
+      // If there's an IN_PROGRESS attempt, resume it instead of creating a new one
+      if (existingAttempt.status === 'IN_PROGRESS') {
+        // Clean up any duplicate IN_PROGRESS attempts (same student, same exam)
+        await prisma.examAttempt.deleteMany({
+          where: {
+            examId,
+            studentId: user.id,
+            status: 'IN_PROGRESS',
+            id: { not: existingAttempt.id }
+          }
+        })
+        
+        // Calculate remaining time
+        let remainingSeconds = exam.duration * 60
+        if (exam.scheduledDate) {
+          const scheduledStart = new Date(exam.scheduledDate)
+          const elapsedSinceStart = Math.floor((now.getTime() - scheduledStart.getTime()) / 1000)
+          remainingSeconds = Math.max(0, exam.duration * 60 - elapsedSinceStart)
+        }
+        // If already started, reduce remaining by elapsed time
+        if (existingAttempt.startedAt) {
+          const elapsedSinceStart = Math.floor((now.getTime() - existingAttempt.startedAt.getTime()) / 1000)
+          remainingSeconds = Math.max(0, remainingSeconds - elapsedSinceStart)
+        }
+
+        return NextResponse.json({
+          success: true,
+          attempt: existingAttempt,
+          remainingSeconds,
+          exam: {
+            id: exam.id,
+            title: exam.title,
+            description: exam.description,
+            duration: exam.duration,
+            totalMarks: exam.totalMarks,
+            scheduledDate: exam.scheduledDate,
+            questions: exam.questions.map(q => ({
+              id: q.id,
+              type: q.type,
+              text: q.text,
+              marks: q.marks,
+              instructions: q.instructions,
+              options: q.type === 'MULTIPLE_CHOICE' ? q.options : undefined
+            }))
+          }
+        })
+      }
     }
 
     // Calculate remaining time based on scheduled start + duration

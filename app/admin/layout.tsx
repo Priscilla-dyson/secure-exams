@@ -34,7 +34,7 @@ export default async function AdminLayout({
   await requireAdminAuth()
 
   return (
-    <SidebarLayout userRole="admin" showHeader={false}>
+    <SidebarLayout userRole="admin">
       {children}
     </SidebarLayout>
   )

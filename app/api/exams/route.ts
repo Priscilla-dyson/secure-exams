@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
 import { logActivity, extractRequestInfo } from '@/lib/logger'
+import { sendEmail, examScheduledEmail } from '@/lib/email'
 
 // GET /api/exams - Get all exams (filtered by user role)
 // Auto-update exam status based on scheduled/end dates
@@ -267,6 +268,40 @@ export async function POST(request: NextRequest) {
       ipAddress,
       userAgent
     })
+
+    // Send email notification if exam is published/scheduled
+    if (body.published || body.status === 'SCHEDULED') {
+      try {
+        const module = await prisma.module.findUnique({
+          where: { id: moduleId },
+          include: {
+            class: {
+              include: {
+                students: {
+                  where: { status: 'active' },
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
+          }
+        })
+
+        if (module?.class?.students) {
+          const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null
+          const date = scheduledDate ? scheduledDate.toLocaleDateString('en-ZA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'TBD'
+          const time = scheduledDate ? scheduledDate.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : 'TBD'
+
+          for (const student of module.class.students) {
+            if (student.email) {
+              const { subject, html } = examScheduledEmail(student.name, exam.title, module.name, date, time)
+              await sendEmail(student.email, subject, html)
+            }
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send exam notifications:', emailError)
+      }
+    }
 
     return NextResponse.json({ success: true, exam }, { status: 201 })
   } catch (error) {

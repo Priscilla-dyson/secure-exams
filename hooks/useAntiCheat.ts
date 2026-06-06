@@ -109,13 +109,12 @@ export function useAntiCheat({
         violationTimeoutRef.current = setTimeout(() => {
           setIsLocked(false)
           setWarningMessage('')
-          requestFullscreen()
         }, 5000)
       }
 
       return newCount
     })
-  }, [enabled, maxViolations, onViolation, onAutoSubmit, exitFullscreen, requestFullscreen])
+  }, [enabled, maxViolations, onViolation, onAutoSubmit, exitFullscreen])
 
   // Handle visibility change (tab switching) with duration tracking
   useEffect(() => {
@@ -328,13 +327,6 @@ export function useAntiCheat({
       document.removeEventListener('selectstart', disableSelect)
     }
   }, [enabled, handleViolation])
-
-  // Request fullscreen on mount if enabled
-  useEffect(() => {
-    if (enabled) {
-      requestFullscreen()
-    }
-  }, [enabled, requestFullscreen])
 
   // Cleanup on unmount
   useEffect(() => {

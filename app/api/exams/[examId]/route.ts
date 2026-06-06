@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authenticate, authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
+import { sendEmail, examScheduledEmail } from '@/lib/email'
 
 // GET /api/exams/[examId] - Get a specific exam
 export async function GET(
@@ -108,22 +109,22 @@ export async function PUT(
     const updatedExam = await prisma.exam.update({
       where: { id: examId },
       data: {
-        title: body.title,
-        description: body.description,
-        type: body.type,
-        moduleId: body.moduleId,
-        scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : exam.scheduledDate,
-        scheduledTime: body.scheduledTime,
-        endDate: body.endDate ? new Date(body.endDate) : exam.endDate,
-        endTime: body.endTime,
-        duration: parseInt(body.duration),
-        totalMarks: parseInt(body.totalMarks),
-        passingMarks: parseInt(body.passingMarks),
+        title: body.title !== undefined ? body.title : exam.title,
+        description: body.description !== undefined ? body.description : exam.description,
+        type: body.type !== undefined ? body.type : exam.type,
+        moduleId: body.moduleId !== undefined ? body.moduleId : exam.moduleId,
+        scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : (body.scheduledDate === null ? null : exam.scheduledDate),
+        scheduledTime: body.scheduledTime !== undefined ? body.scheduledTime : exam.scheduledTime,
+        endDate: body.endDate ? new Date(body.endDate) : (body.endDate === null ? null : exam.endDate),
+        endTime: body.endTime !== undefined ? body.endTime : exam.endTime,
+        duration: body.duration !== undefined ? parseInt(body.duration) : exam.duration,
+        totalMarks: body.totalMarks !== undefined ? parseInt(body.totalMarks) : exam.totalMarks,
+        passingMarks: body.passingMarks !== undefined ? parseInt(body.passingMarks) : exam.passingMarks,
         status: body.status || exam.status,
         published: body.published !== undefined ? body.published : exam.published,
         showResults: body.showResults !== undefined ? body.showResults : exam.showResults,
         allowLateSubmission: body.allowLateSubmission !== undefined ? body.allowLateSubmission : exam.allowLateSubmission,
-        accessCode: body.accessCode,
+        accessCode: body.accessCode !== undefined ? body.accessCode : exam.accessCode,
         questions: questionData && questionData.length > 0 ? {
           create: questionData.map((q: any, index: number) => ({
             type: q.type,
@@ -132,6 +133,7 @@ export async function PUT(
             marks: q.marks || 1,
             order: q.order || index + 1,
             correctAnswer: q.correctAnswer,
+            mathAnswer: q.mathAnswer,
             options: q.type === 'MULTIPLE_CHOICE' && q.options ? {
               create: q.options.map((opt: any, optIndex: number) => ({
                 text: opt.text,
@@ -150,6 +152,41 @@ export async function PUT(
         }
       }
     })
+
+    // Send email notification if exam is being published/scheduled
+    const wasDraftAndNowScheduled = (body.published || body.status === 'SCHEDULED') && exam.status === 'DRAFT'
+    if (wasDraftAndNowScheduled) {
+      try {
+        const module = await prisma.module.findUnique({
+          where: { id: updatedExam.moduleId },
+          include: {
+            class: {
+              include: {
+                students: {
+                  where: { status: 'active' },
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
+          }
+        })
+
+        if (module?.class?.students) {
+          const scheduledDate = updatedExam.scheduledDate ? new Date(updatedExam.scheduledDate) : null
+          const date = scheduledDate ? scheduledDate.toLocaleDateString('en-ZA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'TBD'
+          const time = scheduledDate ? scheduledDate.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : 'TBD'
+
+          for (const student of module.class.students) {
+            if (student.email) {
+              const { subject, html } = examScheduledEmail(student.name, updatedExam.title, module.name, date, time)
+              await sendEmail(student.email, subject, html)
+            }
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send exam update notifications:', emailError)
+      }
+    }
 
     return NextResponse.json({ success: true, exam: updatedExam })
   } catch (error) {

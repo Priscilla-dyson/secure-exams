@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authorize, unauthorizedResponse } from '@/lib/middleware'
 import { hashPassword } from '@/lib/auth'
 import { logActivity, extractRequestInfo } from '@/lib/logger'
+import { sendEmail, accountCreatedEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,17 @@ export async function POST(request: NextRequest) {
       ipAddress,
       userAgent
     })
+
+    // Send email notification to the user
+    if (targetUser.email) {
+      try {
+        const roleLabel = targetUser.role === 'STUDENT' ? 'Student' : targetUser.role === 'LECTURER' ? 'Lecturer' : 'Admin'
+        const { subject, html } = accountCreatedEmail(targetUser.name, targetUser.userId, defaultPassword, roleLabel)
+        await sendEmail(targetUser.email, subject, html)
+      } catch (emailError) {
+        console.error('Failed to send password reset email:', emailError)
+      }
+    }
 
     return NextResponse.json({ success: true, message: 'Password reset to default (changeme123)' })
   } catch (error) {

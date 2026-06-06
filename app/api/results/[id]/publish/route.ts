@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize, unauthorizedResponse, forbiddenResponse } from '@/lib/middleware'
+import { sendEmail, resultsPublishedEmail } from '@/lib/email'
 
 // POST /api/results/[id]/publish - Publish a result (Lecturer only)
 export async function POST(
@@ -15,7 +16,14 @@ export async function POST(
 
     const result = await prisma.result.findUnique({
       where: { id },
-      include: { exam: true }
+      include: {
+        exam: {
+          include: { module: true }
+        },
+        student: {
+          select: { id: true, name: true, email: true }
+        }
+      }
     })
 
     if (!result) {
@@ -34,6 +42,20 @@ export async function POST(
         publishedAt: new Date()
       }
     })
+
+    // Send email notification to student
+    if (result.student?.email) {
+      try {
+        const { subject, html } = resultsPublishedEmail(
+          result.student.name,
+          result.exam.title,
+          result.exam.module?.name || ''
+        )
+        await sendEmail(result.student.email, subject, html)
+      } catch (emailError) {
+        console.error('Failed to send results notification:', emailError)
+      }
+    }
 
     return NextResponse.json({ success: true, result: updatedResult })
   } catch (error) {

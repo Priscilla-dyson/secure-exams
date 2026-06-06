@@ -16,10 +16,28 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
 
-    setIsSubmitted(true)
-    setIsLoading(false)
+      const data = await response.json()
+
+      if (data.success) {
+        setIsSubmitted(true)
+      } else {
+        // Still show success to prevent email enumeration
+        setIsSubmitted(true)
+      }
+    } catch (err) {
+      console.error('Forgot password error:', err)
+      // Still show success for security
+      setIsSubmitted(true)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

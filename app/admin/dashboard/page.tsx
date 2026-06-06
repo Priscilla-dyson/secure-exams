@@ -65,6 +65,7 @@ export default function AdminDashboard() {
     { label: 'Total Students', value: data.totalStudents, icon: Users, change: `${data.activeUsers} active users` },
     { label: 'Total Lecturers', value: data.totalLecturers, icon: UserCheck, change: 'Faculty members' },
     { label: 'Total Exams', value: data.totalExams, icon: FileText, change: `${data.activeExams} active now` },
+    { label: 'Published Exams', value: data.publishedExams, icon: CheckCircle, change: 'Scheduled & ready' },
     { label: 'Active Exams', value: data.activeExams, icon: Clock, change: 'Currently running' },
     { label: 'Classes', value: data.totalClasses, icon: BookOpen, change: 'Academic programs' },
     { label: 'Modules', value: data.totalModules, icon: BookOpen, change: 'Course modules' },

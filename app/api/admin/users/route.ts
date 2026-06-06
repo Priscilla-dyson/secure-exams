@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         role: true,
+        department: true,
+        isHod: true,
         registrationNumber: true,
         employeeId: true,
         status: true,
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (!admin) return unauthorizedResponse()
 
     const body = await request.json()
-    const { userId, email, name, role, classId } = body
+    const { userId, email, name, role, classId, department, isHod } = body
 
     if (!userId || !email || !name || !role) {
       return NextResponse.json(
@@ -92,7 +94,9 @@ export async function POST(request: NextRequest) {
         classId: classId || null,
         programId: classId ? (await prisma.class.findUnique({ where: { id: classId }, select: { programId: true, year: true } }))?.programId : null,
         year: classId ? (await prisma.class.findUnique({ where: { id: classId }, select: { year: true } }))?.year : null,
-        mustChangePassword: true,
+        department: department || null,
+        isHod: isHod === true,
+        mustChangePassword: false,
         status: 'active'
       },
       select: {
@@ -131,7 +135,7 @@ export async function PUT(request: NextRequest) {
     if (!admin) return unauthorizedResponse()
 
     const body = await request.json()
-    const { id, userId, name, email, role, status, classId } = body
+    const { id, userId, name, email, role, status, classId, department, isHod } = body
 
     if (!id) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
@@ -161,6 +165,8 @@ export async function PUT(request: NextRequest) {
       ...(email !== undefined && { email }),
       ...(role !== undefined && { role: role?.toUpperCase() as any }),
       ...(status !== undefined && { status }),
+      ...(department !== undefined && { department }),
+      ...(isHod !== undefined && { isHod }),
     }
 
     if (classId !== undefined) {

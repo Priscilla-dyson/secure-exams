@@ -61,9 +61,10 @@ export default function LoginPage() {
         localStorage.setItem('rememberMe', JSON.stringify(rememberMe))
       }
 
-      // Redirect to change password page if mustChangePassword is true
-      if (data.user.mustChangePassword) {
-        router.replace('/change-password')
+      // Direct access to dashboard - users can change password from profile
+      if (data.user.isHod && data.user.role === 'LECTURER') {
+        const department = encodeURIComponent(data.user.department || '')
+        router.replace(`/lecturer/dashboard?hod=true&dept=${department}`)
       } else {
         const route = getDashboardRoute(data.user.role)
         router.replace(route)
