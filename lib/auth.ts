@@ -19,7 +19,8 @@ export interface AuthUser {
   role: string
   classId: string | null
   programId: string | null
-  department: string | null
+  department: string | null  // department name (for display)
+  departmentId: string | null // department ID (for queries)
   isHod: boolean
   mustChangePassword?: boolean
 }
@@ -51,7 +52,11 @@ export const verifyToken = (token: string): JWTPayload | null => {
 // Login with email and password
 export const loginUser = async (email: string, password: string): Promise<AuthUser | null> => {
   const user = await prisma.user.findFirst({
-    where: { email }
+    where: { email },
+    include: {
+      department: { select: { id: true, name: true } },
+      hodDepartment: { select: { id: true, name: true } }
+    }
   })
 
   if (!user) {
@@ -70,8 +75,9 @@ export const loginUser = async (email: string, password: string): Promise<AuthUs
     role: user.role,
     classId: user.classId,
     programId: user.programId,
-    department: null,
-    isHod: false,
+    department: user.department?.name || null,
+    departmentId: user.departmentId,
+    isHod: user.hodDepartment !== null,
     mustChangePassword: user.mustChangePassword
   }
 }
@@ -79,7 +85,11 @@ export const loginUser = async (email: string, password: string): Promise<AuthUs
 // Login with user ID and password
 export const loginByUserId = async (userId: string, password: string): Promise<AuthUser | null> => {
   const user = await prisma.user.findUnique({
-    where: { userId }
+    where: { userId },
+    include: {
+      department: { select: { id: true, name: true } },
+      hodDepartment: { select: { id: true, name: true } }
+    }
   })
 
   if (!user) {
@@ -98,8 +108,9 @@ export const loginByUserId = async (userId: string, password: string): Promise<A
     role: user.role,
     classId: user.classId,
     programId: user.programId,
-    department: null,
-    isHod: false,
+    department: user.department?.name || null,
+    departmentId: user.departmentId,
+    isHod: user.hodDepartment !== null,
     mustChangePassword: user.mustChangePassword
   }
 }
@@ -115,7 +126,10 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
       role: true,
       classId: true,
       programId: true,
-      isHod: true
+      departmentId: true,
+      mustChangePassword: true,
+      department: { select: { id: true, name: true } },
+      hodDepartment: { select: { id: true, name: true } }
     }
   })
 
@@ -130,8 +144,10 @@ export const getUserById = async (userId: string): Promise<AuthUser | null> => {
     role: user.role,
     classId: user.classId,
     programId: user.programId,
-    department: null,
-    isHod: false
+    department: user.department?.name || null,
+    departmentId: user.departmentId,
+    isHod: user.hodDepartment !== null,
+    mustChangePassword: user.mustChangePassword
   }
 }
 

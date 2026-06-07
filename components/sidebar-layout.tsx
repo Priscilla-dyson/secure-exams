@@ -93,14 +93,15 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
       if (storedUser) {
         const parsed = JSON.parse(storedUser)
         setUser(parsed)
-        // Only show HOD pages if user is LECTURER role AND has isHod=true
-        setIsHodUser(parsed.role === 'LECTURER' && parsed.isHod === true)
+        // Check if HOD from localStorage, but let the server-side prop override
+        const localIsHod = parsed.role === 'LECTURER' && parsed.isHod === true
+        setIsHodUser(localIsHod)
       }
     }
   }, [])
 
-  // Use prop isHod as fallback, but prefer localStorage value
-  const effectiveIsHod = isHodUser || (isHod && userRole === 'lecturer') || false
+  // Use server-side prop as primary source (passed from JWT), fall back to localStorage
+  const effectiveIsHod = (isHod && userRole === 'lecturer') || isHodUser || false
 
   const handleLogout = async () => {
     try {

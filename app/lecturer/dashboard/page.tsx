@@ -24,6 +24,7 @@ export default function LecturerDashboard() {
   const [exams, setExams] = useState<any[]>([])
   const [assignedModules, setAssignedModules] = useState<any[]>([])
   const [results, setResults] = useState<any[]>([])
+  const [isHod, setIsHod] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,7 +33,12 @@ export default function LecturerDashboard() {
         router.replace('/login')
         return
       }
-      setUser(JSON.parse(currentUser))
+      const parsed = JSON.parse(currentUser)
+      setUser(parsed)
+      // Check if HOD from URL param (set on login redirect) or from user data
+      const urlParams = new URLSearchParams(window.location.search)
+      const hodParam = urlParams.get('hod')
+      setIsHod(parsed.isHod === true || hodParam === 'true')
     }
     Promise.all([fetchExams(), fetchModules(), fetchResults()])
     setIsLoading(false)

@@ -14,7 +14,7 @@ async function getAuthToken() {
     ?.slice('auth-token='.length)
 }
 
-async function requireLecturerAuth() {
+async function requireLecturerAuth(): Promise<{ isHod: boolean; department: string | null }> {
   const token = await getAuthToken()
   if (!token) {
     redirect('/login')
@@ -24,6 +24,11 @@ async function requireLecturerAuth() {
   if (!payload || payload.role !== 'LECTURER') {
     redirect('/login')
   }
+
+  return {
+    isHod: payload.isHod === true,
+    department: payload.department || null
+  }
 }
 
 export default async function LecturerLayout({
@@ -31,10 +36,10 @@ export default async function LecturerLayout({
 }: {
   children: React.ReactNode
 }) {
-  await requireLecturerAuth()
+  const { isHod } = await requireLecturerAuth()
 
   return (
-    <SidebarLayout userRole="lecturer">
+    <SidebarLayout userRole="lecturer" isHod={isHod}>
       {children}
     </SidebarLayout>
   )

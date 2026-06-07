@@ -47,7 +47,10 @@ import {
   Image,
   Undo2,
   Redo2,
+  GripVertical,
+  AlertCircle,
 } from 'lucide-react'
+import MathInput, { InlineMath, DisplayMath } from '@/components/MathInput'
 
 interface Module {
   id: string
@@ -76,6 +79,18 @@ interface Exam {
   _count?: { examAttempts: number }
 }
 
+interface SubQuestion {
+  id: string
+  label: string
+  category: 'MATH' | 'SHORT_ANSWER' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE'
+  text: string
+  marks: number
+  mathAnswer?: string
+  correctAnswer?: string
+  tolerance?: number
+  options?: { text: string; isCorrect: boolean }[]
+}
+
 interface Question {
   id: string
   type: string
@@ -84,7 +99,10 @@ interface Question {
   order: number
   options?: { text: string; isCorrect: boolean }[]
   correctAnswer?: string
-  mathLatex?: string
+  mathAnswer?: string
+  tolerance?: number
+  // Structured sub-questions (1a, 1b, 1c)
+  subQuestions?: SubQuestion[]
 }
 
 const emptyForm = {
@@ -99,52 +117,6 @@ const emptyForm = {
   showResults: true,
   allowLateSubmission: false,
 }
-
-const LATEX_SYMBOLS = [
-  { label: 'x^n', latex: 'x^{n}', group: 'powers' },
-  { label: 'a_{n}', latex: 'a_{n}', group: 'powers' },
-  { label: '\\sqrt{x}', latex: '\\sqrt{x}', group: 'roots' },
-  { label: '\\frac{a}{b}', latex: '\\frac{a}{b}', group: 'fractions' },
-  { label: '\\int', latex: '\\int', group: 'integrals' },
-  { label: '\\sum', latex: '\\sum', group: 'integrals' },
-  { label: '\\pi', latex: '\\pi', group: 'symbols' },
-  { label: '\\alpha', latex: '\\alpha', group: 'symbols' },
-  { label: '\\beta', latex: '\\beta', group: 'symbols' },
-  { label: '\\theta', latex: '\\theta', group: 'symbols' },
-  { label: '\\infty', latex: '\\infty', group: 'symbols' },
-  { label: '\\leq', latex: '\\leq', group: 'symbols' },
-  { label: '\\geq', latex: '\\geq', group: 'symbols' },
-  { label: '\\neq', latex: '\\neq', group: 'symbols' },
-  { label: '\\times', latex: '\\times', group: 'symbols' },
-  { label: '\\div', latex: '\\div', group: 'symbols' },
-  { label: '\\pm', latex: '\\pm', group: 'symbols' },
-  { label: '\\rightarrow', latex: '\\rightarrow', group: 'symbols' },
-  { label: '\\Rightarrow', latex: '\\Rightarrow', group: 'symbols' },
-  { label: '\\leftarrow', latex: '\\leftarrow', group: 'symbols' },
-  { label: '\\Leftrightarrow', latex: '\\Leftrightarrow', group: 'symbols' },
-  { label: '\\cup', latex: '\\cup', group: 'symbols' },
-  { label: '\\cap', latex: '\\cap', group: 'symbols' },
-  { label: '\\subset', latex: '\\subset', group: 'symbols' },
-  { label: '\\subseteq', latex: '\\subseteq', group: 'symbols' },
-  { label: '\\sin', latex: '\\sin', group: 'trig' },
-  { label: '\\cos', latex: '\\cos', group: 'trig' },
-  { label: '\\tan', latex: '\\tan', group: 'trig' },
-  { label: '\\log', latex: '\\log', group: 'trig' },
-  { label: '\\ln', latex: '\\ln', group: 'trig' },
-  { label: '\\lim', latex: '\\lim', group: 'trig' },
-  { label: '\\begin{bmatrix}', latex: '\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}', group: 'matrices' },
-  { label: '\\begin{pmatrix}', latex: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}', group: 'matrices' },
-]
-
-const LATEX_GROUPS = [
-  { id: 'fractions', label: 'Fractions' },
-  { id: 'roots', label: 'Roots' },
-  { id: 'powers', label: 'Powers' },
-  { id: 'integrals', label: 'Calculus' },
-  { id: 'matrices', label: 'Matrices' },
-  { id: 'symbols', label: 'Symbols' },
-  { id: 'trig', label: 'Trig/Log' },
-]
 
 function DrawingCanvas({ value, onChange }: { value: string; onChange: (dataUrl: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -350,6 +322,204 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (dataUrl:
   )
 }
 
+/**
+ * Sub-question editor for STRUCTURED questions (1a, 1b, 1c)
+ */
+function SubQuestionEditor({
+  subQuestion,
+  index,
+  onChange,
+  onRemove,
+}: {
+  subQuestion: SubQuestion
+  index: number
+  onChange: (updated: SubQuestion) => void
+  onRemove: () => void
+}) {
+  const label = `${index + 1}`
+
+  return (
+    <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-primary/10 text-primary font-bold">
+            Part ({label})
+          </Badge>
+          <Select
+            value={subQuestion.category}
+            onValueChange={(v) => onChange({ ...subQuestion, category: v as SubQuestion['category'] })}
+          >
+            <SelectTrigger className="h-7 text-xs w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MATH">Math</SelectItem>
+              <SelectItem value="SHORT_ANSWER">Short Answer</SelectItem>
+              <SelectItem value="MULTIPLE_CHOICE">Multiple Choice</SelectItem>
+              <SelectItem value="TRUE_FALSE">True/False</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Label className="text-xs text-muted-foreground">Marks:</Label>
+            <Input
+              type="number"
+              min={1}
+              value={subQuestion.marks}
+              onChange={e => onChange({ ...subQuestion, marks: parseInt(e.target.value) || 1 })}
+              className="h-7 w-16 text-xs"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+            title="Remove sub-question"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Question text for this sub-part */}
+      <div>
+        <Label className="text-xs text-muted-foreground">Question {label}:</Label>
+        <Textarea
+          value={subQuestion.text}
+          onChange={e => onChange({ ...subQuestion, text: e.target.value })}
+          placeholder={`Enter question ${label} text (supports LaTeX with $...$)`}
+          rows={2}
+          className="text-sm mt-1"
+        />
+      </div>
+
+      {/* Answer input based on category */}
+      {subQuestion.category === 'MATH' && (
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Expected Answer (LaTeX):</Label>
+          <MathInput
+            value={subQuestion.mathAnswer || ''}
+            onChange={v => onChange({ ...subQuestion, mathAnswer: v })}
+            placeholder="e.g., \\frac{1}{2}"
+            label=""
+            showSolve={false}
+          />
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Tolerance:</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.001}
+              value={subQuestion.tolerance ?? 0.01}
+              onChange={e => onChange({ ...subQuestion, tolerance: parseFloat(e.target.value) || 0.01 })}
+              className="h-7 w-20 text-xs"
+            />
+          </div>
+        </div>
+      )}
+
+      {subQuestion.category === 'SHORT_ANSWER' && (
+        <div>
+          <Label className="text-xs text-muted-foreground">Correct Answer:</Label>
+          <Input
+            value={subQuestion.correctAnswer || ''}
+            onChange={e => onChange({ ...subQuestion, correctAnswer: e.target.value })}
+            placeholder="Expected answer text"
+            className="h-8 text-sm mt-1"
+          />
+        </div>
+      )}
+
+      {subQuestion.category === 'TRUE_FALSE' && (
+        <div className="flex items-center gap-3 mt-1">
+          <Label className="text-xs text-muted-foreground">Correct Answer:</Label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onChange({ ...subQuestion, correctAnswer: 'true' })}
+              className={`px-3 py-1 text-xs rounded border ${
+                subQuestion.correctAnswer === 'true'
+                  ? 'bg-green-100 border-green-400 text-green-700'
+                  : 'bg-white border-gray-200 text-gray-500'
+              }`}
+            >
+              True
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ ...subQuestion, correctAnswer: 'false' })}
+              className={`px-3 py-1 text-xs rounded border ${
+                subQuestion.correctAnswer === 'false'
+                  ? 'bg-green-100 border-green-400 text-green-700'
+                  : 'bg-white border-gray-200 text-gray-500'
+              }`}
+            >
+              False
+            </button>
+          </div>
+        </div>
+      )}
+
+      {subQuestion.category === 'MULTIPLE_CHOICE' && (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Options:</Label>
+          {subQuestion.options?.map((opt, oi) => (
+            <div key={oi} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name={`mcq-sub-${index}`}
+                checked={opt.isCorrect}
+                onChange={() =>
+                  onChange({
+                    ...subQuestion,
+                    options: subQuestion.options?.map((o, j) => ({ ...o, isCorrect: j === oi })),
+                  })
+                }
+                className="w-4 h-4 accent-primary shrink-0"
+              />
+              <Input
+                value={opt.text}
+                onChange={e => {
+                  const opts = [...(subQuestion.options || [])]
+                  opts[oi] = { ...opts[oi], text: e.target.value }
+                  onChange({ ...subQuestion, options: opts })
+                }}
+                placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                className="flex-1 h-8 text-sm"
+              />
+              {(subQuestion.options?.length || 0) > 2 && (
+                <button
+                  onClick={() =>
+                    onChange({
+                      ...subQuestion,
+                      options: subQuestion.options?.filter((_, j) => j !== oi),
+                    })
+                  }
+                  className="text-red-500 text-xs"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              onChange({
+                ...subQuestion,
+                options: [...(subQuestion.options || []), { text: '', isCorrect: false }],
+              })
+            }
+            className="text-xs text-primary font-medium"
+          >
+            + Add option
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ExamManagementPage() {
   const [exams, setExams] = useState<Exam[]>([])
   const [modules, setModules] = useState<Module[]>([])
@@ -366,8 +536,8 @@ export default function ExamManagementPage() {
     text: '',
     marks: 5,
     options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
+    subQuestions: [],
   })
-  const [latexGroup, setLatexGroup] = useState('fractions')
   const [canvasData, setCanvasData] = useState<string>('')
 
   useEffect(() => {
@@ -416,12 +586,36 @@ export default function ExamManagementPage() {
     try {
       const res = await fetch(`/api/exams/${exam.id}/questions`)
       const d = await res.json()
-      if (d.success) setQuestions(d.questions.map((q: any) => ({
-        id: q.id, type: q.type, text: q.text, marks: q.marks, order: q.order,
-        options: q.options?.map((o: any) => ({ text: o.text, isCorrect: o.isCorrect })),
-        correctAnswer: q.correctAnswer,
-        mathLatex: q.mathAnswer,
-      })))
+      if (d.success) {
+        setQuestions(d.questions.map((q: any) => {
+          const question: Question = {
+            id: q.id,
+            type: q.category || q.type,
+            text: q.text,
+            marks: q.marks,
+            order: q.order,
+            options: q.options?.map((o: any) => ({ text: o.text, isCorrect: o.isCorrect })),
+            correctAnswer: q.correctAnswer,
+            mathAnswer: q.mathAnswer,
+            tolerance: q.tolerance,
+          }
+          // Load sub-questions if STRUCTURED
+          if ((q.category === 'STRUCTURED' || q.type === 'STRUCTURED') && q.subQuestions?.length > 0) {
+            question.subQuestions = q.subQuestions.map((sq: any, idx: number) => ({
+              id: sq.id,
+              label: `${idx + 1}`,
+              category: sq.category || 'SHORT_ANSWER',
+              text: sq.text,
+              marks: sq.marks || 1,
+              mathAnswer: sq.mathAnswer,
+              correctAnswer: sq.correctAnswer,
+              tolerance: sq.tolerance,
+              options: sq.options?.map((o: any) => ({ text: o.text, isCorrect: o.isCorrect })),
+            }))
+          }
+          return question
+        }))
+      }
     } catch { setQuestions([]) }
     setStep(1)
     setShowDialog(true)
@@ -452,12 +646,42 @@ export default function ExamManagementPage() {
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         showResults: form.showResults, allowLateSubmission: form.allowLateSubmission,
         published: publish, status: publish ? 'SCHEDULED' : 'DRAFT',
-        questions: questions.map((q, i) => ({
-          type: q.type, text: q.text, marks: q.marks, order: i + 1,
-          options: q.type === 'MULTIPLE_CHOICE' ? q.options : undefined,
-          correctAnswer: (q.type === 'SHORT_ANSWER' || q.type === 'ESSAY') ? q.correctAnswer : undefined,
-          mathAnswer: q.type === 'MATH' ? q.mathLatex : undefined,
-        })),
+        questions: questions.map((q, i) => {
+          const base: any = {
+            category: q.type === 'STRUCTURED' ? 'STRUCTURED' :
+                      q.type === 'MATH' ? 'MATH' :
+                      q.type === 'MULTIPLE_CHOICE' ? 'MULTIPLE_CHOICE' :
+                      q.type === 'SHORT_ANSWER' ? 'SHORT_ANSWER' :
+                      q.type === 'TRUE_FALSE' ? 'TRUE_FALSE' :
+                      q.type === 'ESSAY' ? 'ESSAY' :
+                      'SHORT_ANSWER',
+            text: q.text,
+            marks: q.marks,
+            order: i + 1,
+            options: (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') && q.options ? q.options : undefined,
+            correctAnswer: q.type === 'TRUE_FALSE' ? q.correctAnswer :
+                           q.type === 'SHORT_ANSWER' ? q.correctAnswer :
+                           q.type === 'ESSAY' ? q.correctAnswer : undefined,
+            mathAnswer: q.type === 'MATH' ? q.mathAnswer : undefined,
+            tolerance: q.type === 'MATH' ? q.tolerance : undefined,
+          }
+
+          // For structured questions, include sub-questions
+          if (q.type === 'STRUCTURED' && q.subQuestions && q.subQuestions.length > 0) {
+            base.subQuestions = q.subQuestions.map((sq, sIdx) => ({
+              category: sq.category,
+              text: sq.text,
+              marks: sq.marks,
+              order: sIdx + 1,
+              mathAnswer: sq.category === 'MATH' ? sq.mathAnswer : undefined,
+              correctAnswer: sq.category !== 'MATH' ? sq.correctAnswer : undefined,
+              tolerance: sq.category === 'MATH' ? sq.tolerance : undefined,
+              options: sq.category === 'MULTIPLE_CHOICE' ? sq.options : undefined,
+            }))
+          }
+
+          return base
+        }),
       }
       const res = editingExam
         ? await fetch(`/api/exams/${editingExam.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -490,33 +714,115 @@ export default function ExamManagementPage() {
     } catch { console.error }
   }
 
+  const addSubQuestion = () => {
+    if (!newQ.subQuestions) {
+      setNewQ({ ...newQ, subQuestions: [] })
+    }
+    const sq: SubQuestion = {
+      id: `sq_${Date.now()}`,
+      label: String((newQ.subQuestions?.length || 0) + 1),
+      category: 'MATH',
+      text: '',
+      marks: 2,
+      tolerance: 0.01,
+      options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
+    }
+    setNewQ({
+      ...newQ,
+      subQuestions: [...(newQ.subQuestions || []), sq],
+    })
+  }
+
+  const updateSubQuestion = (index: number, updated: SubQuestion) => {
+    const sqs = [...(newQ.subQuestions || [])]
+    sqs[index] = updated
+    setNewQ({ ...newQ, subQuestions: sqs })
+  }
+
+  const removeSubQuestion = (index: number) => {
+    const sqs = (newQ.subQuestions || []).filter((_, i) => i !== index)
+    setNewQ({ ...newQ, subQuestions: sqs })
+  }
+
   const addQuestion = () => {
-    if (!newQ.text?.trim()) { alert('Question text is required'); return }
-    if (!newQ.marks || newQ.marks < 1) { alert('Marks must be at least 1'); return }
-    if (newQ.type === 'MULTIPLE_CHOICE') {
-      const filled = newQ.options?.filter(o => o.text.trim()) || []
-      if (filled.length < 2) { alert('MCQ needs at least 2 options'); return }
-      if (!newQ.options?.some(o => o.isCorrect)) { alert('Mark the correct answer'); return }
+    if (newQ.type === 'STRUCTURED') {
+      // Validate structured has sub-questions
+      if (!newQ.subQuestions || newQ.subQuestions.length === 0) {
+        alert('Add at least one sub-question (1a, 1b, etc.) for structured questions')
+        return
+      }
+      // Validate each sub-question has text
+      for (let i = 0; i < newQ.subQuestions.length; i++) {
+        if (!newQ.subQuestions[i].text?.trim()) {
+          alert(`Sub-question ${i + 1} needs question text`)
+          return
+        }
+      }
+      // Calculate total marks from sub-questions
+      const totalSubMarks = newQ.subQuestions.reduce((sum, sq) => sum + sq.marks, 0)
+
+      const question: Question = {
+        id: `q_${Date.now()}`,
+        type: 'STRUCTURED',
+        text: newQ.text?.trim() || 'Answer all parts of the question:',
+        marks: totalSubMarks,
+        order: questions.length + 1,
+        subQuestions: newQ.subQuestions.map(sq => ({ ...sq })),
+      }
+      setQuestions([...questions, question])
+    } else if (newQ.type === 'MATH') {
+      if (!newQ.text?.trim() && !newQ.mathAnswer?.trim()) {
+        alert('Question text or math answer is required')
+        return
+      }
+      if (!newQ.marks || newQ.marks < 1) { alert('Marks must be at least 1'); return }
+
+      const question: Question = {
+        id: `q_${Date.now()}`,
+        type: 'MATH',
+        text: newQ.text?.trim() || '',
+        marks: newQ.marks,
+        order: questions.length + 1,
+        mathAnswer: newQ.mathAnswer,
+        tolerance: newQ.tolerance || 0.01,
+      }
+      setQuestions([...questions, question])
+    } else {
+      if (!newQ.text?.trim()) { alert('Question text is required'); return }
+      if (!newQ.marks || newQ.marks < 1) { alert('Marks must be at least 1'); return }
+      if (newQ.type === 'MULTIPLE_CHOICE') {
+        const filled = newQ.options?.filter(o => o.text.trim()) || []
+        if (filled.length < 2) { alert('MCQ needs at least 2 options'); return }
+        if (!newQ.options?.some(o => o.isCorrect)) { alert('Mark the correct answer'); return }
+      }
+      if (newQ.type === 'DRAWING' && !canvasData) {
+        alert('Please draw something on the canvas')
+        return
+      }
+
+      const question: Question = {
+        id: `q_${Date.now()}`,
+        type: newQ.type as string,
+        text: newQ.text.trim(),
+        marks: newQ.marks,
+        order: questions.length + 1,
+        options: newQ.type === 'MULTIPLE_CHOICE' ? newQ.options?.filter(o => o.text.trim()) : undefined,
+        correctAnswer: (newQ.type === 'SHORT_ANSWER' || newQ.type === 'TRUE_FALSE' || newQ.type === 'ESSAY') ? newQ.correctAnswer : undefined,
+      }
+      if (newQ.type === 'DRAWING') {
+        question.text = newQ.text.trim() || 'Draw your answer on the canvas'
+      }
+      setQuestions([...questions, question])
     }
-    if (newQ.type === 'DRAWING' && !canvasData) {
-      alert('Please draw something on the canvas');
-      return
-    }
-    const question: Question = {
-      id: `q_${Date.now()}`,
-      type: newQ.type as string,
-      text: newQ.type === 'MATH' ? newQ.text.trim() || newQ.mathLatex || '' : newQ.text.trim(),
-      marks: newQ.marks,
-      order: questions.length + 1,
-      options: newQ.type === 'MULTIPLE_CHOICE' ? newQ.options?.filter(o => o.text.trim()) : undefined,
-      correctAnswer: (newQ.type === 'SHORT_ANSWER' || newQ.type === 'ESSAY') ? newQ.correctAnswer : undefined,
-      mathLatex: newQ.type === 'MATH' ? newQ.mathLatex : undefined,
-    }
-    if (newQ.type === 'DRAWING') {
-      question.text = newQ.text.trim() || 'Draw your answer on the canvas'
-    }
-    setQuestions([...questions, question])
-    setNewQ({ type: 'MULTIPLE_CHOICE', text: '', marks: 5, options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] })
+
+    // Reset form
+    setNewQ({
+      type: 'MULTIPLE_CHOICE',
+      text: '',
+      marks: 5,
+      options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
+      subQuestions: [],
+    })
     setCanvasData('')
     setShowAddQ(false)
   }
@@ -540,24 +846,6 @@ export default function ExamManagementPage() {
     { num: 3, label: 'Questions' },
     { num: 4, label: 'Review' },
   ]
-
-  const insertLatex = (latex: string) => {
-    const textarea = document.querySelector<HTMLTextAreaElement>('#math-question-text')
-    if (textarea) {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const before = newQ.text?.substring(0, start) || ''
-      const after = newQ.text?.substring(end) || ''
-      const newText = before + latex + after
-      setNewQ({ ...newQ, text: newText })
-      setTimeout(() => {
-        textarea.focus()
-        textarea.setSelectionRange(start + latex.length, start + latex.length)
-      }, 0)
-    } else {
-      setNewQ({ ...newQ, text: (newQ.text || '') + latex })
-    }
-  }
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
 
@@ -626,7 +914,7 @@ export default function ExamManagementPage() {
       )}
 
       <Dialog open={showDialog} onOpenChange={v => { if (!v) closeDialog() }}>
-        <DialogContent className="max-w-2xl overflow-x-hidden">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="border-b border-gray-200 pb-3">
             <DialogTitle className="text-lg font-bold">{editingExam ? 'Edit Exam' : 'Create New Exam'}</DialogTitle>
           </DialogHeader>
@@ -739,7 +1027,16 @@ export default function ExamManagementPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">{questions.length} questions · {totalMarks} marks</span>
-                <Button size="sm" onClick={() => setShowAddQ(!showAddQ)}>
+                <Button size="sm" onClick={() => {
+                  setShowAddQ(!showAddQ)
+                  setNewQ({
+                    type: 'MULTIPLE_CHOICE',
+                    text: '',
+                    marks: 5,
+                    options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
+                    subQuestions: [],
+                  })
+                }}>
                   <Plus className="w-4 h-4 mr-1" />{showAddQ ? 'Cancel' : 'Add Question'}
                 </Button>
               </div>
@@ -750,85 +1047,178 @@ export default function ExamManagementPage() {
                     <div>
                       <Label className="text-xs">Type</Label>
                       <Select value={newQ.type} onValueChange={v => {
-                        setNewQ({ ...newQ, type: v, options: v === 'MULTIPLE_CHOICE' ? [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] : undefined })
+                        setNewQ({
+                          ...newQ,
+                          type: v,
+                          options: v === 'MULTIPLE_CHOICE' ? [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] :
+                                  v === 'TRUE_FALSE' ? [{ text: 'True', isCorrect: true }, { text: 'False', isCorrect: false }] :
+                                  undefined,
+                        })
                         setCanvasData(v === 'DRAWING' ? '' : canvasData)
                       }}>
                         <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="MULTIPLE_CHOICE">Multiple Choice</SelectItem>
+                          <SelectItem value="TRUE_FALSE">True / False</SelectItem>
                           <SelectItem value="SHORT_ANSWER">Short Answer</SelectItem>
                           <SelectItem value="ESSAY">Essay</SelectItem>
                           <SelectItem value="MATH">Math (LaTeX)</SelectItem>
+                          <SelectItem value="STRUCTURED">Structured (1a, 1b, 1c)</SelectItem>
                           <SelectItem value="DRAWING">Drawing</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs">Marks</Label>
-                      <Input type="number" min="1" value={newQ.marks} onChange={e => setNewQ({ ...newQ, marks: parseInt(e.target.value) || 0 })} className="mt-1 h-9" />
+                      <Label className="text-xs">
+                        Marks
+                        {newQ.type === 'STRUCTURED' && (
+                          <span className="text-muted-foreground font-normal ml-1">(auto-summed)</span>
+                        )}
+                      </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={newQ.type === 'STRUCTURED' ? (newQ.subQuestions || []).reduce((s, sq) => s + sq.marks, 0) : (newQ.marks || 0)}
+                        onChange={e => {
+                          if (newQ.type !== 'STRUCTURED') {
+                            setNewQ({ ...newQ, marks: parseInt(e.target.value) || 0 })
+                          }
+                        }}
+                        disabled={newQ.type === 'STRUCTURED'}
+                        className="mt-1 h-9"
+                      />
                     </div>
                   </div>
 
-                  {newQ.type === 'MATH' ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Sigma className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-medium text-gray-700">LaTeX Equation Editor</span>
-                      </div>
-                      <Tabs value={latexGroup} onValueChange={setLatexGroup} className="w-full">
-                        <TabsList className="flex-wrap h-auto gap-0.5 bg-gray-100 p-0.5">
-                          {LATEX_GROUPS.map(g => (
-                            <TabsTrigger key={g.id} value={g.id} className="text-xs px-2 py-0.5 h-7">
-                              {g.label}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                        {LATEX_GROUPS.map(g => (
-                          <TabsContent key={g.id} value={g.id} className="mt-1">
-                            <div className="flex flex-wrap gap-1 p-1.5 bg-gray-50 rounded border border-gray-200">
-                              {LATEX_SYMBOLS.filter(s => s.group === g.id).map((sym, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  onClick={() => insertLatex(sym.latex)}
-                                  className="px-2 py-1 text-xs font-mono bg-white border border-gray-200 rounded hover:bg-primary/10 hover:border-primary/40 transition-colors"
-                                  title={sym.label}
-                                >
-                                  {sym.latex}
-                                </button>
-                              ))}
-                            </div>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
-                      <Textarea
-                        id="math-question-text"
-                        value={newQ.text || ''}
-                        onChange={e => setNewQ({ ...newQ, text: e.target.value })}
-                        placeholder="Enter question with LaTeX (e.g., Solve $\\int_{0}^{\\infty} e^{-x} dx$)"
-                        rows={2}
-                        className="font-mono text-sm"
-                      />
-                      <div className="border border-gray-200 rounded p-2 bg-white">
-                        <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                        <p className="text-sm font-mono text-gray-800">{newQ.text || 'LaTeX preview will appear here'}</p>
-                      </div>
+                  {/* STRUCTURED question builder */}
+                  {newQ.type === 'STRUCTURED' && (
+                    <div className="space-y-3">
                       <div>
-                        <Label className="text-xs">Expected Answer (LaTeX)</Label>
-                        <Input
-                          value={newQ.mathLatex || ''}
-                          onChange={e => setNewQ({ ...newQ, mathLatex: e.target.value })}
-                          placeholder="e.g., \\frac{1}{2}"
-                          className="h-9 font-mono text-sm"
+                        <Label className="text-xs">Question stem (optional):</Label>
+                        <Textarea
+                          value={newQ.text || ''}
+                          onChange={e => setNewQ({ ...newQ, text: e.target.value })}
+                          placeholder="e.g., Solve the following equations:"
+                          rows={1}
+                          className="text-sm mt-1"
                         />
                       </div>
-                    </div>
-                  ) : newQ.type === 'DRAWING' ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Pencil className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-medium text-gray-700">Drawing Canvas</span>
+
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-primary flex items-center gap-1">
+                          <GripVertical className="w-3.5 h-3.5" />
+                          Sub-Questions (1a, 1b, 1c...)
+                        </Label>
+                        <Button type="button" size="sm" variant="outline" onClick={addSubQuestion} className="h-7 text-xs">
+                          <Plus className="w-3 h-3 mr-1" /> Add Part
+                        </Button>
                       </div>
+
+                      {(newQ.subQuestions || []).length === 0 ? (
+                        <div className="border border-dashed border-gray-200 rounded-lg p-4 text-center">
+                          <p className="text-xs text-muted-foreground">
+                            No sub-questions yet. Click "Add Part" to create 1a, 1b, 1c...
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {(newQ.subQuestions || []).map((sq, idx) => (
+                            <SubQuestionEditor
+                              key={sq.id}
+                              subQuestion={sq}
+                              index={idx}
+                              onChange={(updated) => updateSubQuestion(idx, updated)}
+                              onRemove={() => removeSubQuestion(idx)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* MATH question with MathInput */}
+                  {newQ.type === 'MATH' && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs">Question Text:</Label>
+                        <MathInput
+                          value={newQ.text || ''}
+                          onChange={v => setNewQ({ ...newQ, text: v })}
+                          placeholder="Enter question with LaTeX (e.g., Solve $\int_{0}^{\infty} e^{-x} dx$)"
+                          label="Question"
+                          showSolve={false}
+                        />
+                      </div>
+                      <div className="border-t border-gray-200 pt-3">
+                        <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
+                          Expected Answer (for auto-marking):
+                        </Label>
+                        <MathInput
+                          value={newQ.mathAnswer || ''}
+                          onChange={v => setNewQ({ ...newQ, mathAnswer: v })}
+                          placeholder="e.g., \frac{1}{2}"
+                          label="Correct Answer"
+                          showSolve={false}
+                        />
+                        <div className="flex items-center gap-2 mt-2">
+                          <Label className="text-xs text-muted-foreground">Tolerance:</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.001}
+                            value={newQ.tolerance ?? 0.01}
+                            onChange={e => setNewQ({ ...newQ, tolerance: parseFloat(e.target.value) || 0.01 })}
+                            className="h-8 w-24 text-xs"
+                          />
+                          <span className="text-[10px] text-muted-foreground">(numerical tolerance for auto-marking)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TRUE_FALSE question */}
+                  {newQ.type === 'TRUE_FALSE' && (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={newQ.text || ''}
+                        onChange={e => setNewQ({ ...newQ, text: e.target.value })}
+                        placeholder="Enter your true/false question..."
+                        rows={2}
+                        className="mt-1"
+                      />
+                      <div className="flex items-center gap-3">
+                        <Label className="text-xs">Correct Answer:</Label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setNewQ({ ...newQ, correctAnswer: 'true' })}
+                            className={`px-3 py-1 text-xs rounded border ${
+                              newQ.correctAnswer === 'true'
+                                ? 'bg-green-100 border-green-400 text-green-700'
+                                : 'bg-white border-gray-200 text-gray-500'
+                            }`}
+                          >
+                            True
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewQ({ ...newQ, correctAnswer: 'false' })}
+                            className={`px-3 py-1 text-xs rounded border ${
+                              newQ.correctAnswer === 'false'
+                                ? 'bg-green-100 border-green-400 text-green-700'
+                                : 'bg-white border-gray-200 text-gray-500'
+                            }`}
+                          >
+                            False
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* DRAWING question */}
+                  {newQ.type === 'DRAWING' && (
+                    <div className="space-y-2">
                       <Textarea
                         value={newQ.text || ''}
                         onChange={e => setNewQ({ ...newQ, text: e.target.value })}
@@ -843,7 +1233,10 @@ export default function ExamManagementPage() {
                         </div>
                       )}
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Other question types */}
+                  {newQ.type !== 'MATH' && newQ.type !== 'STRUCTURED' && newQ.type !== 'TRUE_FALSE' && newQ.type !== 'DRAWING' && (
                     <>
                       <Textarea value={newQ.text} onChange={e => setNewQ({ ...newQ, text: e.target.value })} placeholder="Enter question..." rows={2} className="mt-1" />
 
@@ -892,7 +1285,8 @@ export default function ExamManagementPage() {
                       )}
                     </>
                   )}
-                  <div className="flex justify-end"><Button size="sm" onClick={addQuestion}>Add</Button></div>
+
+                  <div className="flex justify-end"><Button size="sm" onClick={addQuestion}>Add Question</Button></div>
                 </div>
               )}
 
@@ -902,17 +1296,43 @@ export default function ExamManagementPage() {
                   <p className="text-sm text-gray-500">No questions yet</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-2 max-h-72 overflow-y-auto">
                   {questions.map((q, i) => (
                     <div key={q.id} className="border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                          <Badge variant="secondary" className="text-xs">{q.type === 'MULTIPLE_CHOICE' ? 'MCQ' : q.type === 'SHORT_ANSWER' ? 'Short' : q.type === 'ESSAY' ? 'Essay' : q.type === 'MATH' ? 'Math' : q.type === 'DRAWING' ? 'Drawing' : q.type}</Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {q.type === 'MULTIPLE_CHOICE' ? 'MCQ' :
+                             q.type === 'SHORT_ANSWER' ? 'Short' :
+                             q.type === 'TRUE_FALSE' ? 'T/F' :
+                             q.type === 'ESSAY' ? 'Essay' :
+                             q.type === 'MATH' ? 'Math' :
+                             q.type === 'STRUCTURED' ? 'Structured' :
+                             q.type === 'DRAWING' ? 'Drawing' : q.type}
+                          </Badge>
                           <span className="text-xs text-gray-500">{q.marks} marks</span>
+                          {q.type === 'STRUCTURED' && q.subQuestions && (
+                            <span className="text-[10px] text-muted-foreground">
+                              ({q.subQuestions.length} parts)
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm truncate">{q.text}</p>
-                        {q.mathLatex && <p className="text-xs font-mono text-gray-400 mt-0.5">LaTeX: {q.mathLatex}</p>}
+                        {q.type === 'STRUCTURED' && q.subQuestions && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {q.subQuestions.map((sq, sIdx) => (
+                              <Badge key={sq.id} variant="outline" className="text-[10px] bg-gray-50">
+                                {sIdx + 1}a ({sq.category}) - {sq.marks}mk
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {q.mathAnswer && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-[10px] text-muted-foreground font-mono">Ans: {q.mathAnswer.substring(0, 30)}{q.mathAnswer.length > 30 ? '...' : ''}</span>
+                          </div>
+                        )}
                       </div>
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 shrink-0" onClick={() => removeQ(q.id)}><X className="w-3 h-3" /></Button>
                     </div>

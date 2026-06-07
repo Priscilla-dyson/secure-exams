@@ -38,6 +38,35 @@ enum ExamAttemptStatus {
   GRADED
 }
 
+enum QuestionCategory {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  MATH
+  STRUCTURED
+}
+
+model Department {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  code        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  hodId       String?     @unique
+  hod         User?       @relation("DepartmentHOD", fields: [hodId], references: [id])
+  lecturers   User[]      @relation("DepartmentLecturer")
+  programs    Program[]
+  subjects    Subject[]
+
+  @@index([name])
+  @@index([code])
+  @@index([hodId])
+}
+
 model User {
   id                String   @id @default(cuid())
   email             String?
@@ -47,8 +76,13 @@ model User {
   userId            String   @unique
   registrationNumber String?  @unique
   employeeId        String?  @unique
-  department        String?
-  isHod             Boolean  @default(false)
+  
+  // Department relationship
+  departmentId      String?
+  department        Department? @relation("DepartmentLecturer", fields: [departmentId], references: [id])
+  
+  // HOD relationship (one user can be HOD of one department)
+  hodDepartment     Department? @relation("DepartmentHOD")
   
   // For students: program and year (referencing Program model)
   programId         String?
@@ -74,33 +108,38 @@ model User {
   lecturedModules   Module[] @relation("ModuleLecturer")
   results           Result[]
   systemLogs        SystemLog[]
+  createdQuestions  Question[] @relation("QuestionCreator")
 
   @@index([userId])
   @@index([role])
   @@index([classId])
   @@index([programId])
   @@index([year])
+  @@index([departmentId])
 }
 
 model Program {
-  id        String   @id @default(cuid())
-  name      String   @unique  // e.g. "ICT", "Nursing", "Business"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  departmentId String?
+  department  Department? @relation(fields: [departmentId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  students  User[]
-  classes   Class[]
-  modules   Module[]
+  students    User[]
+  classes     Class[]
+  modules     Module[]
 
   @@index([name])
   @@index([isActive])
+  @@index([departmentId])
 }
 
 model Class {
   id          String   @id @default(cuid())
-  name        String   @unique  // Auto-generated: "ICT Year 1"
+  name        String   @unique
   programId   String
   program     Program  @relation(fields: [programId], references: [id])
   year        Int      // 1, 2, 3, or 4
@@ -113,9 +152,27 @@ model Class {
   students    User[]
   modules     Module[]
 
-  @@unique([programId, year])  // Only one class per program-year combination
+  @@unique([programId, year])
   @@index([programId])
   @@index([year])
+  @@index([isActive])
+}
+
+model Subject {
+  id          String      @id @default(cuid())
+  name        String
+  code        String      @unique
+  description String?
+  departmentId String
+  department  Department  @relation(fields: [departmentId], references: [id])
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  questions   Question[]
+
+  @@index([departmentId])
+  @@index([code])
   @@index([isActive])
 }
 
@@ -139,7 +196,7 @@ model Module {
   @@index([classId])
   @@index([programId])
   @@index([lecturerId])
-  @@unique([classId, name])  // Unique module name per class
+  @@unique([classId, name])
 }
 
 model Exam {
@@ -177,24 +234,54 @@ model Exam {
 }
 
 model Question {
-  id          String        @id @default(cuid())
-  examId      String
-  exam        Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
-  type        QuestionType
-  text        String
-  instructions String?
-  imageUrl     String?
-  marks       Int           @default(1)
-  order       Int
-  correctAnswer String?
-  mathAnswer  String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String           @id @default(cuid())
+  examId          String?          // direct exam link (legacy)
+  category        QuestionCategory @default(MULTIPLE_CHOICE)
+  subjectId       String?
+  subject         Subject?         @relation(fields: [subjectId], references: [id])
+  text            String
+  plainText       String?
+  instructions    String?
+  imageUrl        String?
+  marks           Int              @default(1)
+  difficulty      Int              @default(1)
+  requiresManualMarking Boolean    @default(false)
+  type            QuestionType     @default(MULTIPLE_CHOICE)
+  order           Int              @default(0)
+  
+  // Parent-child for sub-questions
+  parentId        String?
+  parent          Question?        @relation("SubQuestions", fields: [parentId], references: [id])
+  subQuestions    Question[]       @relation("SubQuestions")
+  
+  // For auto-marking
+  correctAnswer   String?
+  mathAnswer      String?
+  tolerance       Float?
+  caseSensitive   Boolean          @default(false)
+  maxLength       Int?
+  markingRules    Json?
+  
+  // Usage tracking
+  timesUsed       Int              @default(0)
+  lastUsedAt      DateTime?
+
+  creatorId       String
+  creator         User             @relation("QuestionCreator", fields: [creatorId], references: [id])
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   // Relations
-  options     QuestionOption[]
-  answers     StudentAnswer[]
+  exam            Exam?            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  answers         StudentAnswer[]
 
+  @@index([subjectId])
+  @@index([creatorId])
+  @@index([category])
+  @@index([parentId])
+  @@index([isActive])
   @@index([examId])
 }
 
@@ -238,24 +325,35 @@ model ExamAttempt {
 }
 
 model StudentAnswer {
-  id          String      @id @default(cuid())
-  attemptId   String
-  attempt     ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  questionId  String
-  question    Question    @relation(fields: [questionId], references: [id])
-  studentId   String
-  student     User        @relation(fields: [studentId], references: [id])
-  answer      String?
+  id              String      @id @default(cuid())
+  attemptId       String
+  attempt         ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question    @relation(fields: [questionId], references: [id])
+  studentId       String
+  student         User        @relation(fields: [studentId], references: [id])
+  
+  answer          String?
   selectedOptionId String?
-  drawingImage String?
-  marks       Int?
-  isCorrect   Boolean?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  drawingImage    String?
+  
+  // Auto-marking results
+  autoMarked      Boolean     @default(false)
+  autoMarkScore   Float?
+  autoMarkDetails Json?
+  
+  marks           Int?
+  isCorrect       Boolean?
+  graderId        String?
+  graderComment   String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([attemptId])
   @@index([questionId])
   @@index([studentId])
+  @@index([autoMarked])
 }
 
 model Result {
@@ -300,9 +398,9 @@ model AntiCheatLog {
   id            String      @id @default(cuid())
   attemptId     String
   attempt       ExamAttempt @relation(fields: [attemptId], references: [id])
-  violationType String      // TAB_SWITCH, FULLSCREEN_EXIT, FOCUS_LOSS, KEYBOARD_SHORTCUT, COPY_PASTE, RIGHT_CLICK, FACE_ABSENT
+  violationType String
   details       String?
-  durationAway  Int?        // Duration in seconds the student was away
+  durationAway  Int?
   createdAt     DateTime    @default(now())
 
   @@index([attemptId])

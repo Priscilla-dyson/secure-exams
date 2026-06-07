@@ -241,43 +241,159 @@ function CheckItem({ icon: Icon, label, ok, onToggle }: { icon: any; label: stri
   );
 }
 
-// Math Input Component (LaTeX)
+// Math Input Component (LaTeX) with KaTeX rendering + WolframAlpha-style palette
 function MathInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [preview, setPreview] = useState(value || "\\text{Type a LaTeX formula...}");
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [showPalette, setShowPalette] = useState(true)
+  const [activeGroup, setActiveGroup] = useState('fractions')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const updatePreview = (text: string) => {
-    setPreview(text || "\\text{Type a LaTeX formula...}");
-    onChange(text);
-  };
+  // Render LaTeX preview with KaTeX
+  useEffect(() => {
+    if (!value.trim()) {
+      setPreviewHtml('')
+      return
+    }
+    let cancelled = false
+    const render = async () => {
+      try {
+        const katex = await import('katex')
+        if (cancelled) return
+        const html = katex.default.renderToString(value, {
+          throwOnError: false,
+          displayMode: true,
+          output: 'html'
+        })
+        setPreviewHtml(html)
+      } catch {
+        if (!cancelled) setPreviewHtml(`<span class="text-muted-foreground">${value}</span>`)
+      }
+    }
+    render()
+    return () => { cancelled = true }
+  }, [value])
+
+  const insertLatex = (latex: string) => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const before = value.substring(0, start)
+      const after = value.substring(end)
+      const newText = before + latex + after
+      onChange(newText)
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start + latex.length, start + latex.length)
+      }, 0)
+    } else {
+      onChange(value + latex)
+    }
+  }
+
+  const symbols = [
+    { label: '\\frac{a}{b}', latex: '\\frac{a}{b}', group: 'fractions', render: '\\frac{a}{b}' },
+    { label: '\\frac{dy}{dx}', latex: '\\frac{dy}{dx}', group: 'fractions', render: '\\frac{dy}{dx}' },
+    { label: 'x^n', latex: 'x^{n}', group: 'powers', render: 'x^{n}' },
+    { label: '\\sqrt{x}', latex: '\\sqrt{x}', group: 'powers', render: '\\sqrt{x}' },
+    { label: '\\sqrt[n]{x}', latex: '\\sqrt[n]{x}', group: 'powers', render: '\\sqrt[3]{x}' },
+    { label: '\\int', latex: '\\int', group: 'calculus', render: '\\int' },
+    { label: '\\int_a^b', latex: '\\int_{a}^{b}', group: 'calculus', render: '\\int_{a}^{b}' },
+    { label: '\\sum', latex: '\\sum', group: 'calculus', render: '\\sum' },
+    { label: '\\sum_{n=1}^{\\infty}', latex: '\\sum_{n=1}^{\\infty}', group: 'calculus', render: '\\sum_{n=1}^{\\infty}' },
+    { label: 'α', latex: '\\alpha', group: 'greek', render: '\\alpha' },
+    { label: 'β', latex: '\\beta', group: 'greek', render: '\\beta' },
+    { label: 'π', latex: '\\pi', group: 'greek', render: '\\pi' },
+    { label: 'θ', latex: '\\theta', group: 'greek', render: '\\theta' },
+    { label: '≠', latex: '\\neq', group: 'relations', render: '\\neq' },
+    { label: '≤', latex: '\\leq', group: 'relations', render: '\\leq' },
+    { label: '≥', latex: '\\geq', group: 'relations', render: '\\geq' },
+    { label: '×', latex: '\\times', group: 'operators', render: '\\times' },
+    { label: '÷', latex: '\\div', group: 'operators', render: '\\div' },
+    { label: '±', latex: '\\pm', group: 'operators', render: '\\pm' },
+    { label: '→', latex: '\\rightarrow', group: 'arrows', render: '\\rightarrow' },
+    { label: '⇒', latex: '\\Rightarrow', group: 'arrows', render: '\\Rightarrow' },
+    { label: '∪', latex: '\\cup', group: 'sets', render: '\\cup' },
+    { label: '∩', latex: '\\cap', group: 'sets', render: '\\cap' },
+    { label: '∈', latex: '\\in', group: 'sets', render: '\\in' },
+    { label: '∅', latex: '\\emptyset', group: 'sets', render: '\\emptyset' },
+  ]
+
+  const groups = [
+    { id: 'fractions', label: 'Fractions' },
+    { id: 'powers', label: 'Powers/Roots' },
+    { id: 'calculus', label: 'Calculus' },
+    { id: 'greek', label: 'Greek' },
+    { id: 'relations', label: 'Relations' },
+    { id: 'operators', label: 'Operators' },
+    { id: 'arrows', label: 'Arrows' },
+    { id: 'sets', label: 'Sets' },
+  ]
+
+  // Palette button with rendered KaTeX
+  function PaletteBtn({ sym }: { sym: typeof symbols[0] }) {
+    const [html, setHtml] = useState('')
+    useEffect(() => {
+      let cancelled = false
+      import('katex').then(katex => {
+        if (cancelled) return
+        setHtml(katex.default.renderToString(sym.render, { throwOnError: false, displayMode: false, output: 'html' }))
+      }).catch(() => { if (!cancelled) setHtml(`<span>${sym.label}</span>`) })
+      return () => { cancelled = true }
+    }, [sym.render, sym.label])
+    return (
+      <button type="button" onClick={() => insertLatex(sym.latex)} title={`Insert: ${sym.latex}`} className="w-12 h-9 flex items-center justify-center bg-background border border-border rounded hover:bg-primary/10 hover:border-primary/40 text-xs">
+        <span className="[&_.katex]:text-sm" dangerouslySetInnerHTML={{ __html: html }} />
+      </button>
+    )
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border border-border bg-muted/30 p-4 min-h-[60px] flex items-center justify-center overflow-x-auto">
-        <span className="text-lg text-foreground font-mono">{preview}</span>
+    <div className="space-y-2">
+      {/* LaTeX Palette */}
+      {showPalette && (
+        <div className="rounded-lg border border-border/50 bg-muted/30 p-1.5">
+          <div className="flex flex-wrap gap-1 mb-1">
+            {groups.map(g => (
+              <button key={g.id} type="button" onClick={() => setActiveGroup(g.id)} className={`text-[10px] px-2 py-0.5 rounded ${activeGroup === g.id ? 'bg-primary text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}>{g.label}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {symbols.filter(s => s.group === activeGroup).map((sym, i) => (
+              <PaletteBtn key={i} sym={sym} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input with KaTeX preview */}
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="e.g. \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"
+          rows={3}
+          className="w-full rounded-md border border-border bg-background px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-y"
+        />
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-        <Sigma className="h-3.5 w-3.5" />
-        <span>Enter your answer using LaTeX notation. Examples: <code className="bg-muted px-1 rounded">{'\\frac{a}{b}'}</code>, <code className="bg-muted px-1 rounded">{'\\sqrt{x}'}</code>, <code className="bg-muted px-1 rounded">{'\\sum_{i=1}^{n}'}</code></span>
-      </div>
-      <textarea
-        value={value}
-        onChange={(e) => updatePreview(e.target.value)}
-        placeholder="e.g. \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"
-        rows={3}
-        className="w-full rounded-md border border-border bg-background px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-      />
-      <div className="flex flex-wrap gap-2">
-        {[String.raw`\frac{a}{b}`, String.raw`\sqrt{x}`, String.raw`x^2`, String.raw`x_n`, String.raw`\pi`, String.raw`\theta`, String.raw`\alpha`, String.raw`\beta`, String.raw`\sum`, String.raw`\int`, String.raw`\leq`, String.raw`\geq`, String.raw`\neq`, String.raw`\infty`, String.raw`\pm`, String.raw`\times`, String.raw`\div`, String.raw`\cdot`].map((sym) => (
-          <button
-            key={sym}
-            type="button"
-            onClick={() => updatePreview(value + sym + " ")}
-            className="rounded border border-border bg-background px-2 py-1 text-xs font-mono hover:bg-muted transition"
-          >
-            {sym}
-          </button>
-        ))}
-      </div>
+
+      {/* LaTeX preview rendered */}
+      {value.trim() && (
+        <div className="rounded-md border border-border/50 bg-white dark:bg-background p-3 min-h-[50px] flex items-center justify-center overflow-x-auto">
+          <div className="text-lg" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        </div>
+      )}
+
+      {/* Toggle palette */}
+      <button
+        type="button"
+        onClick={() => setShowPalette(!showPalette)}
+        className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+      >
+        <Sigma className="w-3 h-3" />
+        {showPalette ? 'Hide' : 'Show'} formula palette
+      </button>
     </div>
   );
 }
