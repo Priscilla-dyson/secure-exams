@@ -26,9 +26,12 @@ import {
   Square,
   Circle,
   ArrowRight,
+  Camera,
+  CameraOff,
 } from "lucide-react";
 import React from "react";
 import { useAntiCheat } from "@/hooks/useAntiCheat";
+import { useAIProctor } from "@/hooks/useAIProctor";
 import { AntiCheatWarning } from "@/components/anti-cheat-warning";
 
 type Stage = "loading" | "readiness" | "active" | "submitted";
@@ -62,21 +65,15 @@ export default function ExamPaperPage() {
   const [error, setError] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  useEffect(() => {
-    startExam();
-  }, [examId]);
-  
   const attemptIdRef = useRef<string | null>(null);
   attemptIdRef.current = attemptId;
 
-  const startExam = async () => {
+  const loadExam = async () => {
     try {
-      const response = await fetch(`/api/student/exams/${examId}/start`, {
-        method: 'POST'
-      });
+      // First just fetch the exam data without creating an attempt
+      const response = await fetch(`/api/student/exams/${examId}`);
       const data = await response.json();
       if (data.success) {
-        setAttemptId(data.attempt.id);
         setExamData({
           id: data.exam.id,
           title: data.exam.title,
@@ -96,6 +93,29 @@ export default function ExamPaperPage() {
       setError("Failed to load exam. Please try again.");
     }
   };
+
+  const startAttempt = async () => {
+    try {
+      const response = await fetch(`/api/student/exams/${examId}/start`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAttemptId(data.attempt.id);
+        setRemainingSeconds(data.remainingSeconds);
+        setStage("active");
+      } else {
+        setError(data.error || "Failed to start exam");
+      }
+    } catch (err) {
+      console.error("Error starting exam:", err);
+      setError("Failed to start exam. Please try again.");
+    }
+  };
+
+  useEffect(() => {
+    loadExam();
+  }, [examId]);
 
   if (stage === "loading") {
     return (
@@ -125,7 +145,7 @@ export default function ExamPaperPage() {
       <Readiness
         examData={examData}
         remainingSeconds={remainingSeconds}
-        onStart={() => setStage("active")}
+        onStart={startAttempt}
       />
     );
   }
@@ -182,6 +202,8 @@ function Readiness({ examData, remainingSeconds, onStart }: { examData: ExamData
                 <li>• Closing the tab, switching windows, or exiting fullscreen is logged and may auto-submit.</li>
                 <li>• Copy/paste and keyboard shortcuts are disabled during the exam.</li>
                 <li>• For math questions, use the LaTeX formula editor. For drawing questions, use the canvas tools provided.</li>
+                <li>• Questions are randomly ordered. All answers will be saved.</li>
+                <li>• Webcam AI proctoring monitors for suspicious behavior. Warnings are logged for lecturer review.</li>
               </ul>
             </div>
 
@@ -189,9 +211,10 @@ function Readiness({ examData, remainingSeconds, onStart }: { examData: ExamData
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
                 <div>
-                  <p className="text-sm font-semibold text-foreground">AI Monitoring is enabled for this exam</p>
+                  <p className="text-sm font-semibold text-foreground">AI Monitoring & Webcam Proctoring is enabled</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Tab switching, fullscreen exits, and suspicious activity are tracked. Violations may auto-submit your exam.
+                    Tab switching, fullscreen exits, and suspicious activity are tracked. Browser violations may auto-submit your exam.
+                    AI proctoring violations (face absence, multiple people, looking away) are logged for your lecturer to review.
                   </p>
                 </div>
               </div>
@@ -350,7 +373,6 @@ function MathInput({ value, onChange }: { value: string; onChange: (v: string) =
 
   return (
     <div className="space-y-2">
-      {/* LaTeX Palette */}
       {showPalette && (
         <div className="rounded-lg border border-border/50 bg-muted/30 p-1.5">
           <div className="flex flex-wrap gap-1 mb-1">
@@ -366,7 +388,6 @@ function MathInput({ value, onChange }: { value: string; onChange: (v: string) =
         </div>
       )}
 
-      {/* Input with KaTeX preview */}
       <div className="relative">
         <textarea
           ref={textareaRef}
@@ -378,14 +399,12 @@ function MathInput({ value, onChange }: { value: string; onChange: (v: string) =
         />
       </div>
 
-      {/* LaTeX preview rendered */}
       {value.trim() && (
         <div className="rounded-md border border-border/50 bg-white dark:bg-background p-3 min-h-[50px] flex items-center justify-center overflow-x-auto">
           <div className="text-lg" dangerouslySetInnerHTML={{ __html: previewHtml }} />
         </div>
       )}
 
-      {/* Toggle palette */}
       <button
         type="button"
         onClick={() => setShowPalette(!showPalette)}
@@ -498,7 +517,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (v: strin
     const pos = getPos(e);
     setIsDrawing(true);
     setStartPos(pos);
-
     if (tool === "pen" || tool === "eraser") {
       const ctx = canvasRef.current?.getContext('2d');
       if (ctx) {
@@ -514,7 +532,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (v: strin
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-
     if (tool === "pen" || tool === "eraser") {
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
@@ -527,7 +544,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (v: strin
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-
     if (tool === "line" && startPos) {
       ctx.beginPath();
       ctx.moveTo(startPos.x, startPos.y);
@@ -543,7 +559,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (v: strin
       ctx.arc(startPos.x, startPos.y, radius, 0, 2 * Math.PI);
       ctx.stroke();
     }
-
     setIsDrawing(false);
     setStartPos(null);
     saveState();
@@ -622,8 +637,18 @@ function ToolButton({ icon, active, onClick, disabled, title }: { icon: React.Re
   );
 }
 
-// ActiveExam (Main exam-taking component)
+// ActiveExam (Main exam-taking component) - with AI proctoring, question randomization, and enhanced anti-cheat
 function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examData: ExamData; attemptId: string; remainingSeconds: number; onSubmit: () => void }) {
+  // 🔒 Secure question delivery: Shuffle questions randomly per student (prevents previewing all questions)
+  const [shuffledQuestions] = useState(() => {
+    const qs = [...examData.questions];
+    for (let i = qs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [qs[i], qs[j]] = [qs[j], qs[i]];
+    }
+    return qs;
+  });
+
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [drawings, setDrawings] = useState<Record<string, string>>({});
@@ -635,6 +660,7 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
   const [fullscreenViolations, setFullscreenViolations] = useState(0);
   const [faceWarnings, setFaceWarnings] = useState(0);
   const [suspiciousActivity, setSuspiciousActivity] = useState(false);
+  const [aiProctorEnabled, setAiProctorEnabled] = useState(true);
   const antiCheatLoggedRef = useRef<Set<string>>(new Set());
 
   // Refs to avoid stale closures in timer and anti-cheat callbacks
@@ -655,15 +681,26 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
 
-  // Send anti-cheat violation to server
+  // Log AI proctoring violation to server - LOG-ONLY, NEVER auto-submits
+  const logAIViolation = useCallback(async (violationType: string, details: string) => {
+    if (!attemptId) return;
+    try {
+      await fetch(`/api/student/attempts/${attemptId}/ai-proctor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ violationType, details })
+      });
+    } catch (err) {
+      console.error('Failed to log AI proctor violation:', err);
+    }
+  }, [attemptId]);
+
+  // Send browser anti-cheat violation to server
   const logAntiCheatViolation = useCallback(async (violationType: string, details?: string, durationAway?: number) => {
     if (!attemptId) return;
-    
-    // Generate a unique key for this violation to avoid duplicates
     const key = `${violationType}_${Date.now()}`;
     if (antiCheatLoggedRef.current.has(key)) return;
     antiCheatLoggedRef.current.add(key);
-    
     try {
       await fetch(`/api/student/attempts/${attemptId}/anti-cheat`, {
         method: 'POST',
@@ -675,6 +712,7 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     }
   }, [attemptId]);
 
+  // Update antiCheatData in handleSubmit to match refs + ensure submittedAt is set
   const handleSubmit = useCallback(async (reason?: string) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -683,7 +721,7 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     try {
       const currentAnswers = answersRef.current;
       const currentDrawings = drawingsRef.current;
-      const answerList = examData.questions.map((question) => {
+      const answerList = shuffledQuestions.map((question) => {
         if (question.type === "MULTIPLE_CHOICE") {
           const selectedIdx = parseInt(currentAnswers[question.id] || "-1", 10);
           const selectedOption = question.options?.[selectedIdx];
@@ -714,6 +752,8 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
 
       const data = await response.json();
       if (data.success) {
+        // Stop AI proctor before navigating
+        stopWebcam();
         onSubmitRef.current();
       } else {
         console.error('Submit error:', data.error);
@@ -725,18 +765,27 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
       setSubmitting(false);
       submittingRef.current = false;
     }
-  }, [examData, attemptId]);
+  }, [shuffledQuestions, attemptId]);
 
+  // UseAntiCheat hook - handles browser violations (tab switch, fullscreen, copy/paste)
+  // These CAN auto-submit after maxViolations (default 3)
   const {
     violationCount,
     isLocked,
     warningMessage,
+    aiViolations,
+    aiWarningMessage,
+    handleAIViolation,
     requestFullscreen,
   } = useAntiCheat({
     enabled: true,
     maxViolations: 3,
-    onViolation: (count) => {
-      console.log(`Violation ${count} detected`);
+    onViolation: (count, type) => {
+      if (type) {
+        console.log(`AI Violation: ${type}`);
+      } else {
+        console.log(`Browser Violation ${count}`);
+      }
     },
     onAutoSubmit: (reason: string) => {
       console.log(`Auto-submit: ${reason}`);
@@ -746,40 +795,74 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
       console.log('Fullscreen exited');
       setFullscreenViolations(prev => prev + 1);
       logAntiCheatViolation('FULLSCREEN_EXIT', 'Student exited fullscreen mode');
+    },
+    onAIViolation: (type, details) => {
+      console.log(`AI Proctor: ${type} - ${details}`);
+      logAIViolation(type, details);
     }
   });
 
-  // Log tab switches in real-time
+  // AI Proctoring integration (LOG-ONLY, never triggers auto-submit)
+  const {
+    isActive: aiProctorActive,
+    proctorState,
+    error: aiProctorError,
+    warningMessage: aiProctorWarning,
+    startWebcam,
+    stopWebcam
+  } = useAIProctor({
+    enabled: aiProctorEnabled,
+    attemptId,
+    onViolation: (type, details) => {
+      handleAIViolation(type, details);
+      // Track face-related violations for submission data
+      if (type === 'FACE_ABSENT' || type === 'MULTIPLE_FACES') {
+        setFaceWarnings(prev => prev + 1);
+      }
+    }
+  });
+
+  // Initialize AI proctor webcam when exam goes active
+  useEffect(() => {
+    startWebcam();
+    return () => stopWebcam();
+  }, [startWebcam, stopWebcam]);
+
+  // Log tab switches in real-time (browser anti-cheat)
   useEffect(() => {
     if (!attemptId) return;
-    
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setTabSwitchCount(prev => prev + 1);
         logAntiCheatViolation('TAB_SWITCH', 'Student switched to another tab');
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [attemptId, logAntiCheatViolation]);
 
-  // Log focus loss (app switching)
+  // Log multiple login detection on mount
   useEffect(() => {
     if (!attemptId) return;
-    
+    fetch(`/api/student/attempts/${attemptId}/login-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceInfo: navigator.userAgent })
+    }).catch(err => console.error('Login check failed:', err));
+  }, [attemptId]);
+
+  // Log focus loss (app switching) - browser anti-cheat
+  useEffect(() => {
+    if (!attemptId) return;
     let blurTimer: NodeJS.Timeout;
-    
     const handleBlur = () => {
       blurTimer = setTimeout(() => {
         logAntiCheatViolation('FOCUS_LOSS', 'Student clicked outside the browser window');
       }, 3000);
     };
-
     const handleFocus = () => {
       clearTimeout(blurTimer);
     };
-
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
     return () => {
@@ -789,10 +872,9 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     };
   }, [attemptId, logAntiCheatViolation]);
 
-  // Log keyboard shortcuts and copy/paste
+  // Log keyboard shortcuts and copy/paste - browser anti-cheat
   useEffect(() => {
     if (!attemptId) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 't' || e.key === 'u' || e.key === 's' || e.key === 'p')) ||
@@ -803,23 +885,19 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
         setSuspiciousActivity(true);
       }
     };
-
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
       logAntiCheatViolation('COPY_PASTE', 'Copy attempt detected');
       setSuspiciousActivity(true);
     };
-
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault();
       logAntiCheatViolation('COPY_PASTE', 'Paste attempt detected');
       setSuspiciousActivity(true);
     };
-
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('copy', handleCopy);
     document.addEventListener('paste', handlePaste);
-
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('copy', handleCopy);
@@ -845,11 +923,11 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
     return () => clearInterval(timer);
   }, []);
 
-  const q = examData.questions[current];
+  const q = shuffledQuestions[current];
   const lowTime = secondsLeft < 5 * 60;
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const ss = String(secondsLeft % 60).padStart(2, "0");
-  const answeredCount = examData.questions.filter((question) => {
+  const answeredCount = shuffledQuestions.filter((question) => {
     const ans = answers[question.id];
     const drawing = drawings[question.id];
     if (question.type === "MATH") return ans !== undefined && String(ans).trim().length > 0;
@@ -871,14 +949,33 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
 
   return (
     <div className="min-h-screen bg-background">
-      <AntiCheatWarning isLocked={isLocked} warningMessage={warningMessage} violationCount={violationCount} maxViolations={3} onRequestFullscreen={requestFullscreen} />
+      <AntiCheatWarning 
+        isLocked={isLocked} 
+        warningMessage={warningMessage} 
+        violationCount={violationCount} 
+        maxViolations={3} 
+        onRequestFullscreen={requestFullscreen}
+        aiWarningMessage={aiWarningMessage}
+        aiViolations={aiViolations}
+      />
       <div className="max-w-6xl mx-auto py-6 px-4">
+        {/* Top Bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-[11px] font-semibold text-green-700">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-600" /> AI Monitoring Active
             </span>
-            <span className="hidden text-xs text-muted-foreground sm:inline">{answeredCount} of {examData.questions.length} answered</span>
+            {aiProctorActive && (
+              <span className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-700">
+                <Camera className="h-3 w-3" /> Proctor
+              </span>
+            )}
+            {!aiProctorActive && aiProctorError && (
+              <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                <CameraOff className="h-3 w-3" /> No Camera
+              </span>
+            )}
+            <span className="hidden text-xs text-muted-foreground sm:inline">{answeredCount} of {shuffledQuestions.length} answered</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -886,7 +983,35 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
           </div>
         </div>
 
+        {/* AI Proctor Warning Banner (non-blocking, NOT auto-submit) */}
+        {aiWarningMessage && !isLocked && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-3">
+            <Camera className="h-5 w-5 text-amber-600 mt-0.5" />
+            <p className="text-sm text-amber-800">{aiWarningMessage}</p>
+          </div>
+        )}
+
+        {/* AI Proctor Status Bar */}
+        {aiProctorActive && (
+          <div className="mb-4 rounded-lg border border-border bg-card p-2 px-3 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className={`h-2 w-2 rounded-full ${proctorState.faceDetected ? 'bg-green-500' : 'bg-red-500'}`} />
+              Face
+            </span>
+            <span className="flex items-center gap-1">
+              <span className={`h-2 w-2 rounded-full ${!proctorState.multipleFaces ? 'bg-green-500' : 'bg-red-500'}`} />
+              Single Person
+            </span>
+            <span className="flex items-center gap-1">
+              <span className={`h-2 w-2 rounded-full ${!proctorState.lookingAway ? 'bg-green-500' : 'bg-amber-500'}`} />
+              Looking at Screen
+            </span>
+            <span className="ml-auto text-[10px] opacity-60">AI Proctor v1.0</span>
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+          {/* Main Question Area */}
           <div className="rounded-lg border border-border bg-card p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -939,7 +1064,7 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
               <button disabled={current === 0} onClick={() => setCurrent((c) => c - 1)} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
                 <ChevronLeft className="h-4 w-4" /> Previous
               </button>
-              {current === examData.questions.length - 1 ? (
+              {current === shuffledQuestions.length - 1 ? (
                 <button onClick={() => setConfirmSubmit(true)} disabled={submitting} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   {submitting ? "Submitting..." : "Submit"}
@@ -952,11 +1077,12 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
             </div>
           </div>
 
+          {/* Question Navigator Sidebar */}
           <aside className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-4">
               <h4 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Question Navigator</h4>
               <div className="mt-3 grid grid-cols-5 gap-2">
-                {examData.questions.map((question, i) => {
+                {shuffledQuestions.map((question, i) => {
                   const ans = answers[question.id];
                   const drawing = drawings[question.id];
                   let answered = false;
@@ -982,15 +1108,16 @@ function ActiveExam({ examData, attemptId, remainingSeconds, onSubmit }: { examD
           </aside>
         </div>
 
+        {/* Submit Confirmation Modal */}
         {confirmSubmit && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Submit your exam?</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">You answered {answeredCount} of {examData.questions.length} questions.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">You answered {answeredCount} of {shuffledQuestions.length} questions.</p>
                 </div>
-                <button onClick={() => setConfirmSubmit(false)} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+                <button onClick={() => setConfirmSubmit(false)} className="rounded p-1 text-muted-foreground hover:bg-muted" title="Close" aria-label="Close"><X className="h-4 w-4" /></button>
               </div>
               <div className="mt-5 flex justify-end gap-2">
                 <button onClick={() => setConfirmSubmit(false)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Keep writing</button>

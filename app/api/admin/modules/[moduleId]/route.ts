@@ -33,7 +33,7 @@ export async function GET(
   }
 }
 
-// PUT /api/admin/modules/[moduleId] - Update module (assign lecturer, etc.)
+// PUT /api/admin/modules/[moduleId] - Update module (name, code, class, lecturer, etc.)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ moduleId: string }> }
@@ -44,7 +44,7 @@ export async function PUT(
 
     const { moduleId } = await params
     const body = await request.json()
-    const { lecturerId } = body
+    const { name, code, programId, classId, lecturerId } = body
 
     const moduleData = await prisma.module.findUnique({
       where: { id: moduleId }
@@ -54,18 +54,28 @@ export async function PUT(
       return NextResponse.json({ error: 'Module not found' }, { status: 404 })
     }
 
+    const updateData: any = {}
+    if (name !== undefined) updateData.name = name
+    if (code !== undefined) updateData.code = code
+    if (programId !== undefined) updateData.programId = programId
+    if (classId !== undefined) updateData.classId = classId
+    if (lecturerId !== undefined) updateData.lecturerId = lecturerId
+
     const updatedModule = await prisma.module.update({
       where: { id: moduleId },
-      data: {
-        lecturerId: lecturerId || null
-      },
+      data: updateData,
       include: {
+        class: { select: { id: true, name: true, year: true } },
+        program: { select: { id: true, name: true } },
         lecturer: {
           select: {
             id: true,
             name: true,
             email: true
           }
+        },
+        _count: {
+          select: { exams: true }
         }
       }
     })

@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Shield, X } from 'lucide-react'
+import { AlertTriangle, Shield, Camera, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface AntiCheatWarningProps {
@@ -9,6 +9,8 @@ interface AntiCheatWarningProps {
   violationCount: number
   maxViolations: number
   onRequestFullscreen: () => void
+  aiWarningMessage?: string | null
+  aiViolations?: number
 }
 
 export function AntiCheatWarning({
@@ -16,7 +18,9 @@ export function AntiCheatWarning({
   warningMessage,
   violationCount,
   maxViolations,
-  onRequestFullscreen
+  onRequestFullscreen,
+  aiWarningMessage,
+  aiViolations = 0
 }: AntiCheatWarningProps) {
   if (!isLocked && !warningMessage) return null
 
@@ -82,11 +86,19 @@ export function AntiCheatWarning({
               {isTerminated && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/70">Total Violations:</span>
+                    <span className="text-white/70">Browser Violations:</span>
                     <span className="font-mono text-red-400">
                       {violationCount} / {maxViolations}
                     </span>
                   </div>
+                  {aiViolations > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white/70">AI Proctor Warnings:</span>
+                      <span className="font-mono text-amber-400">
+                        {aiViolations}
+                      </span>
+                    </div>
+                  )}
                   
                   <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                     <p className="text-red-300 text-xs">

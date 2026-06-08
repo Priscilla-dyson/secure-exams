@@ -49,7 +49,7 @@ export async function GET(
       orderBy: { name: 'asc' }
     })
 
-    // Get all attempts for this exam with full violation data
+    // Get all attempts for this exam with full violation data and anti-cheat logs
     const attempts = await prisma.examAttempt.findMany({
       where: { examId },
       orderBy: { startedAt: 'desc' },
@@ -65,6 +65,10 @@ export async function GET(
               select: { id: true, name: true }
             }
           }
+        },
+        antiCheatLogs: {
+          orderBy: { createdAt: 'desc' },
+          take: 50
         }
       }
     })

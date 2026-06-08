@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { 
   FileText, 
   CheckCircle, 
@@ -14,6 +17,8 @@ import {
   Eye, 
   Save,
   AlertTriangle,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react'
 
 interface Result {
@@ -38,9 +43,11 @@ interface Exam {
 }
 
 export default function ResultsPage() {
+  const router = useRouter()
   const [selectedExamId, setSelectedExamId] = useState<string>('all')
   const [selectedResult, setSelectedResult] = useState<any>(null)
   const [exams, setExams] = useState<Exam[]>([])
+  const [showAllExams, setShowAllExams] = useState(false)
   const [results, setResults] = useState<Result[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -77,7 +84,7 @@ export default function ResultsPage() {
       if (data.success) {
         setResults(results.map(r => r.id === resultId ? { ...r, published: true } : r))
       } else {
-        alert(data.error || 'Failed to publish')
+        toast.error(data.error || 'Failed to publish')
       }
     } catch (err) {
       console.error('Error publishing:', err)
@@ -92,6 +99,12 @@ export default function ResultsPage() {
   const examsWithResults = exams.filter(e => examIdsWithResults.has(e.id))
 
   const publishedCount = results.filter(r => r.published).length
+
+  // Build unique exam IDs that have results for the performance analysis section
+  const examIdsWithResultsList = [...examIdsWithResults].map(id => {
+    const exam = exams.find(e => e.id === id)
+    return { id, title: exam?.title || 'Unknown', code: exam?.module?.code || '' }
+  })
 
   if (loading) {
     return (
@@ -175,6 +188,45 @@ export default function ResultsPage() {
         </Card>
       </div>
 
+      {/* Question Performance Analysis Section */}
+      {examIdsWithResultsList.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Question Performance Analysis</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              See how students performed on each question — how many passed, failed, or did not answer. Identify difficult questions across your exams.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/lecturer/results/question-performance?examId=all">
+                <Button size="sm" variant="outline" className="h-8 text-xs">
+                  <BarChart3 className="w-3.5 h-3.5 mr-1" />
+                  All Exams with Results
+                </Button>
+              </Link>
+              {(showAllExams ? examsWithResults : examsWithResults.slice(0, 5)).map(exam => (
+                <Link key={exam.id} href={`/lecturer/results/question-performance?examId=${exam.id}`}>
+                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                    <BarChart3 className="w-3.5 h-3.5 mr-1" />
+                    {exam.module?.code || exam.title}
+                  </Button>
+                </Link>
+              ))}
+              {examsWithResults.length > 5 && (
+                <button
+                  onClick={() => setShowAllExams(!showAllExams)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors self-center"
+                >
+                  {showAllExams ? 'Show Less' : `View All (${examsWithResults.length})`}
+                </button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -185,6 +237,7 @@ export default function ResultsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Score</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">%</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Graded</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Published</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
@@ -218,6 +271,11 @@ export default function ResultsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
+                      <span className={`text-xs font-medium ${result.score ? 'text-success' : 'text-warning'}`}>
+                        {result.score || result.score === 0 ? 'Graded' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
                       <span className={`text-xs font-medium ${result.published ? 'text-success' : 'text-warning'}`}>
                         {result.published ? 'Yes' : 'No'}
                       </span>
@@ -226,6 +284,13 @@ export default function ResultsPage() {
                       <div className="flex items-center justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => setSelectedResult(result)}>
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => router.push(`/lecturer/submissions`)}
+                        >
+                          Grade
                         </Button>
                         <Button 
                           size="sm" 

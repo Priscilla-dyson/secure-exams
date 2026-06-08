@@ -13,7 +13,7 @@ async function main() {
     update: {},
     create: {
       userId: 'ADMIN001',
-      email: 'admin@university.edu',
+      email: 'priscilladyson432@gmail.com',
       password: adminPassword,
       name: 'System Administrator',
       role: 'ADMIN',

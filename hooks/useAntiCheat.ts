@@ -5,9 +5,11 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 interface AntiCheatOptions {
   enabled: boolean
   maxViolations?: number
-  onViolation?: (count: number) => void
+  onViolation?: (count: number, type?: string) => void
   onAutoSubmit?: (reason: string) => void
   onFullscreenExit?: () => void
+  // AI proctoring violations are log-only, never auto-submit
+  onAIViolation?: (type: string, details: string) => void
 }
 
 export function useAntiCheat({
@@ -15,7 +17,8 @@ export function useAntiCheat({
   maxViolations = 3,
   onViolation,
   onAutoSubmit,
-  onFullscreenExit
+  onFullscreenExit,
+  onAIViolation
 }: AntiCheatOptions) {
   const [violationCount, setViolationCount] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
@@ -29,6 +32,10 @@ export function useAntiCheat({
   const tabSwitchTimerRef = useRef<NodeJS.Timeout | null>(null)
   const autoSubmitRef = useRef<boolean>(false)
 
+  // AI proctoring violations are only for logging/review, never auto-submit
+  const [aiViolations, setAIViolations] = useState(0)
+  const [aiWarningMessage, setAIWarningMessage] = useState<string | null>(null)
+  
   const DURATION_THRESHOLD = 20000 // 20 seconds
 
   const triggerAutoSubmit = useCallback((reason: string) => {
@@ -39,6 +46,23 @@ export function useAntiCheat({
     onAutoSubmit?.(reason)
     exitFullscreen()
   }, [onAutoSubmit])
+
+  // Handle AI proctoring violation - LOG ONLY, never auto-submit
+  const handleAIViolation = useCallback((type: string, details: string) => {
+    if (!enabled || autoSubmitRef.current) return
+    
+    setAIViolations(prev => prev + 1)
+    onViolation?.(0, type) // notify but don't count toward auto-submit
+    onAIViolation?.(type, details)
+    
+    // Show non-blocking warning for AI violations
+    setAIWarningMessage(`AI Proctor: ${details}`)
+    
+    // Auto-clear AI warning after 5 seconds
+    setTimeout(() => {
+      setAIWarningMessage(prev => prev === `AI Proctor: ${details}` ? null : prev)
+    }, 5000)
+  }, [enabled, onViolation, onAIViolation])
 
   // Request fullscreen
   const requestFullscreen = useCallback(async () => {
@@ -369,6 +393,9 @@ export function useAntiCheat({
     isLocked,
     isFullscreen,
     warningMessage,
+    aiViolations,
+    aiWarningMessage,
+    handleAIViolation,
     requestFullscreen,
     exitFullscreen,
     resetViolations

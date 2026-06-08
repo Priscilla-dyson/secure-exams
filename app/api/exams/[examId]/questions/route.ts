@@ -84,6 +84,7 @@ export async function POST(
         examId,
         type,
         text,
+        creatorId: user.id,
         marks: marks ? parseInt(marks) : 1,
         order: questionCount + 1
       }

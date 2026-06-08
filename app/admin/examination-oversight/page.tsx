@@ -1,4 +1,4 @@
- 'use client'
+'use client'
 
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
@@ -22,12 +22,24 @@ interface Exam {
   _count: { examAttempts: number }
 }
 
+interface AntiCheatLog {
+  id: string
+  violationType: string
+  details: string | null
+  createdAt: string
+}
+
 interface Attempt {
   id: string
   status: string
   startedAt: string
   submittedAt: string | null
+  tabSwitchCount: number
+  fullscreenViolations: number
+  faceDetectionWarnings: number
+  suspiciousActivity: boolean
   student: { name: string; email: string }
+  antiCheatLogs?: AntiCheatLog[]
 }
 
 export default function ExaminationOversight() {
@@ -38,6 +50,7 @@ export default function ExaminationOversight() {
   const [selectedExam, setSelectedExam] = useState<string | null>(null)
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [attemptsLoading, setAttemptsLoading] = useState(false)
+  const [expandedAttempt, setExpandedAttempt] = useState<string | null>(null)
 
   const fetchExams = async () => {
     try {
@@ -54,6 +67,7 @@ export default function ExaminationOversight() {
   const fetchAttempts = async (examId: string) => {
     setAttemptsLoading(true)
     setSelectedExam(examId)
+    setExpandedAttempt(null)
     try {
       const res = await fetch(`/api/exams/${examId}/attempts`)
       const data = await res.json()
@@ -94,6 +108,12 @@ export default function ExaminationOversight() {
     )
   }
 
+  const getViolationColor = (count: number) => {
+    if (count === 0) return 'text-muted-foreground'
+    if (count <= 2) return 'text-amber-600'
+    return 'text-red-600 font-bold'
+  }
+
   return (
     <div className="space-y-4">
       {/* Refresh Button */}
@@ -121,6 +141,7 @@ export default function ExaminationOversight() {
             />
           </div>
           <select
+            aria-label="Filter exams by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
@@ -241,7 +262,7 @@ export default function ExaminationOversight() {
         {/* Exam Logs Side Panel */}
         <div>
           <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
-            {selectedExam ? 'Student Attempts' : 'Select an exam'}
+            {selectedExam ? 'Student Attempts & Violations' : 'Select an exam'}
           </h2>
           <div className="rounded-md border border-border bg-card">
             {!selectedExam ? (
@@ -259,24 +280,70 @@ export default function ExaminationOversight() {
               </div>
             ) : (
               <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
-                {attempts.map((attempt) => (
-                  <div key={attempt.id} className="p-4">
-                    <p className="text-sm font-medium text-foreground">{attempt.student.name}</p>
-                    <p className="text-xs text-muted-foreground">{attempt.student.email}</p>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                        attempt.status === 'SUBMITTED' ? 'bg-green-100 text-green-700' :
-                        attempt.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {attempt.status.replace('_', ' ')}
-                      </span>
-                      <span>Started: {new Date(attempt.startedAt).toLocaleString()}</span>
-                    </div>
-                    {attempt.submittedAt && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Submitted: {new Date(attempt.submittedAt).toLocaleString()}
-                      </p>
+                {attempts.map((attempt: Attempt) => (
+                  <div key={attempt.id} className="p-3">
+                    <button
+                      onClick={() => setExpandedAttempt(expandedAttempt === attempt.id ? null : attempt.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">{attempt.student.name}</p>
+                        {attempt.suspiciousActivity && (
+                          <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">SUSPICIOUS</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{attempt.student.email}</p>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                          attempt.status === 'SUBMITTED' ? 'bg-green-100 text-green-700' :
+                          attempt.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                          attempt.status === 'ABSENT' ? 'bg-gray-100 text-gray-500' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {attempt.status.replace('_', ' ')}
+                        </span>
+                        {attempt.startedAt && (
+                          <span>{new Date(attempt.startedAt).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                      {/* Violation badges */}
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${getViolationColor(attempt.tabSwitchCount)} bg-gray-50`}>
+                          Tab switches: {attempt.tabSwitchCount}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${getViolationColor(attempt.fullscreenViolations)} bg-gray-50`}>
+                          Fullscreen exits: {attempt.fullscreenViolations}
+                        </span>
+                        {attempt.faceDetectionWarnings > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded text-amber-600 bg-amber-50">
+                            Face warnings: {attempt.faceDetectionWarnings}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded anti-cheat logs */}
+                    {expandedAttempt === attempt.id && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Violation Log</p>
+                        {attempt.antiCheatLogs && attempt.antiCheatLogs.length > 0 ? (
+                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {attempt.antiCheatLogs.map((log: AntiCheatLog) => (
+                              <div key={log.id} className="flex items-start gap-2 text-[10px]">
+                                <span className="shrink-0 px-1 py-0.5 rounded bg-red-50 text-red-700 font-medium uppercase">
+                                  {log.violationType.replace(/_/g, ' ')}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  {log.details && <p className="text-foreground truncate">{log.details}</p>}
+                                  <p className="text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString()}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground italic">No violations recorded</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

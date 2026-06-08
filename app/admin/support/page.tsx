@@ -24,6 +24,9 @@ interface SupportTicket {
 export default function SupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAllResets, setShowAllResets] = useState(false)
+  const [showAllIssues, setShowAllIssues] = useState(false)
+  const [showAllTickets, setShowAllTickets] = useState(false)
 
   const fetchTickets = async () => {
     setLoading(true)
@@ -74,9 +77,19 @@ export default function SupportPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Password Reset Requests */}
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
-              Password Reset Requests
-            </h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                Password Reset Requests
+              </h2>
+              {passwordResets.length > 10 && (
+                <button
+                  onClick={() => setShowAllResets(!showAllResets)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  {showAllResets ? 'Show Less' : `View All (${passwordResets.length})`}
+                </button>
+              )}
+            </div>
             {passwordResets.length === 0 ? (
               <Card className="p-8 text-center">
                 <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
@@ -84,7 +97,7 @@ export default function SupportPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {passwordResets.slice(0, 10).map((ticket) => (
+                {(showAllResets ? passwordResets : passwordResets.slice(0, 10)).map((ticket) => (
                   <Card key={ticket.id} className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700">
@@ -111,9 +124,19 @@ export default function SupportPage() {
 
           {/* Issues & Events */}
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
-              Issues & Security Events
-            </h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                Issues & Security Events
+              </h2>
+              {issues.length > 10 && (
+                <button
+                  onClick={() => setShowAllIssues(!showAllIssues)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  {showAllIssues ? 'Show Less' : `View All (${issues.length})`}
+                </button>
+              )}
+            </div>
             {issues.length === 0 ? (
               <Card className="p-8 text-center">
                 <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
@@ -121,7 +144,7 @@ export default function SupportPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {issues.slice(0, 10).map((ticket) => (
+                {(showAllIssues ? issues : issues.slice(0, 10)).map((ticket) => (
                   <Card key={ticket.id} className="p-4">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
@@ -152,9 +175,19 @@ export default function SupportPage() {
 
           {/* All Recent System Events */}
           <div className="lg:col-span-2">
-            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
-              Recent System Events
-            </h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                Recent System Events
+              </h2>
+              {tickets.length > 30 && (
+                <button
+                  onClick={() => setShowAllTickets(!showAllTickets)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  {showAllTickets ? 'Show Less' : `View All (${tickets.length})`}
+                </button>
+              )}
+            </div>
             {tickets.length === 0 ? (
               <Card className="p-8 text-center">
                 <p className="text-sm text-muted-foreground">No system events recorded</p>
@@ -173,7 +206,7 @@ export default function SupportPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {tickets.slice(0, 30).map((ticket) => (
+                      {(showAllTickets ? tickets : tickets.slice(0, 30)).map((ticket) => (
                         <tr key={ticket.id} className="hover:bg-accent/50">
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(ticket.createdAt).toLocaleString()}

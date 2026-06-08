@@ -4,6 +4,15 @@ import { authorize, unauthorizedResponse } from '@/lib/middleware'
 import { hashPassword } from '@/lib/auth'
 import { logActivity, extractRequestInfo } from '@/lib/logger'
 
+// ============================================================
+// ADMIN USERS API - /api/admin/users
+// ============================================================
+// Handles CRUD operations for users by admin.
+// The 'isHod' field does not exist on the User model — HOD status
+// is tracked via the Department.hodId relation (see prisma/schema.prisma).
+// To check if a user is HOD, query department relation instead.
+// ============================================================
+
 // GET /api/admin/users - Get all users (Admin only)
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +30,29 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         role: true,
-        department: true,
-        isHod: true,
+        // isHod does NOT exist on User model - HOD is tracked via Department.hodId
+        // To check HOD status, query: user.hodDepartment (relation field)
+        departmentId: true,
         registrationNumber: true,
         employeeId: true,
         status: true,
         createdAt: true,
         class: { select: { id: true, name: true } },
+        // Include department info + isHod check via hodDepartment relation
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            hodId: true
+          }
+        },
+        hodDepartment: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         lecturedModules: {
           select: {
             id: true,
@@ -41,7 +66,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json({ success: true, users })
+    // Transform the data for frontend: add computed isHod flag
+    const transformedUsers = users.map(u => ({
+      ...u,
+      isHod: u.hodDepartment !== null
+    }))
+
+    return NextResponse.json({ success: true, users: transformedUsers })
   } catch (error) {
     console.error('Get users error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -55,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (!admin) return unauthorizedResponse()
 
     const body = await request.json()
-    const { userId, email, name, role, classId, department, isHod } = body
+    const { userId, email, name, role, classId, departmentId } = body
 
     if (!userId || !email || !name || !role) {
       return NextResponse.json(
@@ -94,8 +125,8 @@ export async function POST(request: NextRequest) {
         classId: classId || null,
         programId: classId ? (await prisma.class.findUnique({ where: { id: classId }, select: { programId: true, year: true } }))?.programId : null,
         year: classId ? (await prisma.class.findUnique({ where: { id: classId }, select: { year: true } }))?.year : null,
-        department: department || null,
-        isHod: isHod === true,
+        // 'department' is a relation, not a direct field - use departmentId
+        departmentId: departmentId || null,
         mustChangePassword: false,
         status: 'active'
       },
@@ -135,7 +166,7 @@ export async function PUT(request: NextRequest) {
     if (!admin) return unauthorizedResponse()
 
     const body = await request.json()
-    const { id, userId, name, email, role, status, classId, department, isHod } = body
+    const { id, userId, name, email, role, status, classId, departmentId } = body
 
     if (!id) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
@@ -165,8 +196,7 @@ export async function PUT(request: NextRequest) {
       ...(email !== undefined && { email }),
       ...(role !== undefined && { role: role?.toUpperCase() as any }),
       ...(status !== undefined && { status }),
-      ...(department !== undefined && { department }),
-      ...(isHod !== undefined && { isHod }),
+      ...(departmentId !== undefined && { departmentId }),
     }
 
     if (classId !== undefined) {

@@ -25,9 +25,6 @@ export default function LandingPage() {
             <a href="#how-it-works" className="text-base font-medium text-onSurface-variant hover:text-primary transition-colors duration-200">
               How It Works
             </a>
-            <Link href="/contact-us" className="text-base font-medium text-onSurface-variant hover:text-primary transition-colors duration-200">
-              Contact
-            </Link>
           </div>
           <Link href="/login">
             <Button className="text-white px-8 py-3 text-base font-semibold rounded-md bg-primary hover:bg-primary-container transition-all duration-200">
@@ -50,12 +47,12 @@ export default function LandingPage() {
           />
         </div>
         
-        {/* Gradient Overlay with Blur */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-primary-container/85 backdrop-blur-sm" />
+        {/* Gradient Overlay with subtle blue tint — image visible through semi-transparent overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-primary/40 to-primary-container/35 backdrop-blur-[2px]" />
         
         {/* Decorative Blur Elements */}
-        <div className="absolute top-20 right-20 w-96 h-96 rounded-full bg-primary-inverse/10 blur-3xl" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 rounded-full bg-primary-onContainer/10 blur-3xl" />
+        <div className="absolute top-20 right-20 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-4xl max-h-96 rounded-full bg-white/5 blur-3xl" />
         
         {/* Hero Content */}
@@ -81,30 +78,6 @@ export default function LandingPage() {
                   Learn More
                 </Button>
               </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section - Full Width */}
-      <section className="w-full bg-primary-container">
-        <div className="w-full px-8 lg:px-12 py-16">
-          <div className="grid md:grid-cols-4 gap-8 text-center max-w-6xl mx-auto">
-            <div className="p-6 rounded-lg bg-white/5">
-              <div className="text-4xl lg:text-5xl font-bold mb-2 text-white">20K+</div>
-              <p className="text-base text-primary-onContainer">Students Assessed</p>
-            </div>
-            <div className="p-6 rounded-lg bg-white/5">
-              <div className="text-4xl lg:text-5xl font-bold mb-2 text-white">99.9%</div>
-              <p className="text-base text-primary-onContainer">System Uptime</p>
-            </div>
-            <div className="p-6 rounded-lg bg-white/5">
-              <div className="text-4xl lg:text-5xl font-bold mb-2 text-white">100+</div>
-              <p className="text-base text-primary-onContainer">Institutions</p>
-            </div>
-            <div className="p-6 rounded-lg bg-white/5">
-              <div className="text-4xl lg:text-5xl font-bold mb-2 text-white">24/7</div>
-              <p className="text-base text-primary-onContainer">Support Available</p>
             </div>
           </div>
         </div>

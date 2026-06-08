@@ -262,6 +262,18 @@ model Question {
   maxLength       Int?
   markingRules    Json?
   
+  // Wolfram-style math input (natural language like "solve x^2+1=0")
+  mathInput       String?
+  
+  // Content format indicator
+  contentFormat   String           @default("PLAIN") // PLAIN, LATEX, WOLFRAM
+  
+  // Label for sub-parts (1a, 1b, etc.)
+  partLabel       String?
+  
+  // Flag: does this question use math rendering for display?
+  useMathRendering Boolean        @default(false)
+  
   // Usage tracking
   timesUsed       Int              @default(0)
   lastUsedAt      DateTime?
@@ -311,6 +323,18 @@ model ExamAttempt {
   fullscreenViolations Int @default(0)
   faceDetectionWarnings Int @default(0)
   suspiciousActivity Boolean @default(false)
+  
+  // Enhanced AI Proctoring fields
+  aiProctorEnabled Boolean @default(false)
+  multiplePersonCount Int @default(0)
+  lookingAwayCount Int @default(0)
+  objectDetectedCount Int @default(0)
+  aiSuspicionScore Float @default(0)
+  aiReviewRequired Boolean @default(false)
+  
+  // Question randomization
+  questionOrder Json? // Stores randomized question order
+  
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -318,6 +342,7 @@ model ExamAttempt {
   answers     StudentAnswer[]
   result      Result?
   antiCheatLogs AntiCheatLog[]
+  loginAttempts LoginAttempt[]
 
   @@index([examId])
   @@index([studentId])
@@ -402,6 +427,20 @@ model AntiCheatLog {
   details       String?
   durationAway  Int?
   createdAt     DateTime    @default(now())
+
+  @@index([attemptId])
+  @@index([createdAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  attemptId String
+  attempt   ExamAttempt @relation(fields: [attemptId], references: [id])
+  ipAddress String?
+  userAgent String?
+  location  String?
+  deviceInfo String?
+  createdAt DateTime @default(now())
 
   @@index([attemptId])
   @@index([createdAt])

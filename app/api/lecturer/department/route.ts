@@ -6,86 +6,121 @@ export async function GET(request: NextRequest) {
   try {
     const user = await authorize(request, ['LECTURER'])
     if (!user) return unauthorizedResponse()
-    if (!user.isHod || !user.department) {
-      return NextResponse.json({ error: 'Not authorized as HOD' }, { status: 403 })
+
+    // Check if user is HOD using the isHod flag (which comes from hodDepartment relation)
+    if (!user.isHod || !user.departmentId) {
+      return NextResponse.json({ error: 'Not authorized as HOD. Only department HODs can view department data.' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'overview'
+    const departmentId = user.departmentId
 
-    const department = user.department
+    // Get the department info
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId },
+      include: {
+        programs: { where: { isActive: true }, select: { id: true, name: true } },
+        _count: { select: { lecturers: true, subjects: true, programs: true } }
+      }
+    })
+
+    if (!department) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404 })
+    }
+
+    const programIds = department.programs.map(p => p.id)
 
     if (type === 'overview') {
-      // Get department overview stats
-      const program = await prisma.program.findFirst({
-        where: { name: { contains: department, mode: 'insensitive' }, isActive: true }
+      const studentsCount = programIds.length > 0 ? await prisma.user.count({
+        where: { role: 'STUDENT', programId: { in: programIds }, status: 'active' }
+      }) : 0
+
+      const modulesCount = programIds.length > 0 ? await prisma.module.count({
+        where: { programId: { in: programIds } }
+      }) : 0
+
+      const examsCount = programIds.length > 0 ? await prisma.exam.count({
+        where: { module: { programId: { in: programIds } } }
+      }) : 0
+
+      // Get recent activity
+      const recentExams = await prisma.exam.findMany({
+        where: { module: { programId: { in: programIds } } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          module: { select: { code: true, name: true } },
+          creator: { select: { name: true } },
+          _count: { select: { examAttempts: true } }
+        }
       })
-
-      const programId = program?.id
-
-      const lecturersCount = await prisma.user.count({
-        where: { role: 'LECTURER', department: { contains: department, mode: 'insensitive' } }
-      })
-
-      const studentsCount = programId ? await prisma.user.count({
-        where: { role: 'STUDENT', programId }
-      }) : 0
-
-      const modulesCount = programId ? await prisma.module.count({
-        where: { programId }
-      }) : 0
-
-      const examsCount = programId ? await prisma.exam.count({
-        where: { module: { programId } }
-      }) : 0
 
       return NextResponse.json({
         success: true,
         data: {
-          department,
-          program: program?.name || department,
-          lecturers: lecturersCount,
+          id: department.id,
+          name: department.name,
+          code: department.code,
+          description: department.description,
+          lecturers: department._count.lecturers,
           students: studentsCount,
           modules: modulesCount,
-          exams: examsCount
+          exams: examsCount,
+          programs: department.programs.length,
+          recentExams
         }
       })
     }
 
     if (type === 'lecturers') {
       const lecturers = await prisma.user.findMany({
-        where: { role: 'LECTURER', department: { contains: department, mode: 'insensitive' } },
+        where: { role: 'LECTURER', departmentId },
         select: {
           id: true,
           userId: true,
           name: true,
           email: true,
           employeeId: true,
-          isHod: true,
           status: true,
+          hodDepartment: { select: { id: true } },
           lecturedModules: {
-            select: { id: true, code: true, name: true, program: { select: { name: true } }, class: { select: { name: true } } }
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              program: { select: { name: true } },
+              class: { select: { name: true } }
+            }
           }
         },
         orderBy: { name: 'asc' }
       })
 
-      return NextResponse.json({ success: true, data: lecturers })
+      // Tag HODs
+      const lecturersWithHodStatus = lecturers.map(l => ({
+        ...l,
+        isHod: l.hodDepartment !== null
+      }))
+
+      return NextResponse.json({ success: true, data: lecturersWithHodStatus })
     }
 
     if (type === 'modules') {
-      const program = await prisma.program.findFirst({
-        where: { name: { contains: department, mode: 'insensitive' }, isActive: true }
-      })
-
-      const modules = program ? await prisma.module.findMany({
-        where: { programId: program.id },
+      const modules = programIds.length > 0 ? await prisma.module.findMany({
+        where: { programId: { in: programIds } },
         select: {
           id: true,
           code: true,
           name: true,
           class: { select: { name: true, year: true } },
           lecturer: { select: { name: true, email: true } },
+          program: { select: { name: true } },
           _count: { select: { exams: true } }
         },
         orderBy: { code: 'asc' }
@@ -95,12 +130,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'exams') {
-      const program = await prisma.program.findFirst({
-        where: { name: { contains: department, mode: 'insensitive' }, isActive: true }
-      })
-
-      const exams = program ? await prisma.exam.findMany({
-        where: { module: { programId: program.id } },
+      const exams = programIds.length > 0 ? await prisma.exam.findMany({
+        where: { module: { programId: { in: programIds } } },
         select: {
           id: true,
           title: true,
@@ -109,7 +140,14 @@ export async function GET(request: NextRequest) {
           duration: true,
           totalMarks: true,
           scheduledDate: true,
-          module: { select: { code: true, name: true, lecturer: { select: { name: true } } } },
+          module: {
+            select: {
+              code: true,
+              name: true,
+              lecturer: { select: { name: true } },
+              program: { select: { name: true } }
+            }
+          },
           creator: { select: { name: true } },
           _count: { select: { examAttempts: true } }
         },
@@ -120,12 +158,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'results') {
-      const program = await prisma.program.findFirst({
-        where: { name: { contains: department, mode: 'insensitive' }, isActive: true }
-      })
-
-      const results = program ? await prisma.result.findMany({
-        where: { exam: { module: { programId: program.id } }, published: true },
+      const results = programIds.length > 0 ? await prisma.result.findMany({
+        where: { exam: { module: { programId: { in: programIds } } }, published: true },
         select: {
           id: true,
           score: true,
@@ -133,8 +167,14 @@ export async function GET(request: NextRequest) {
           percentage: true,
           grade: true,
           createdAt: true,
-          student: { select: { name: true, userId: true } },
-          exam: { select: { title: true, type: true, module: { select: { code: true, name: true } } } }
+          student: { select: { name: true, userId: true, registrationNumber: true } },
+          exam: {
+            select: {
+              title: true,
+              type: true,
+              module: { select: { code: true, name: true, program: { select: { name: true } } } }
+            }
+          }
         },
         orderBy: { createdAt: 'desc' },
         take: 100
@@ -155,7 +195,75 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+    if (type === 'activities') {
+      // Comprehensive view of all activities in the department
+      // Get all exams with their statuses, creators, attempt counts
+      const allExams = programIds.length > 0 ? await prisma.exam.findMany({
+        where: { module: { programId: { in: programIds } } },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          duration: true,
+          totalMarks: true,
+          scheduledDate: true,
+          endDate: true,
+          createdAt: true,
+          published: true,
+          module: {
+            select: {
+              code: true,
+              name: true,
+              class: { select: { name: true } },
+              program: { select: { name: true } }
+            }
+          },
+          creator: { select: { name: true, userId: true } },
+          _count: {
+            select: {
+              examAttempts: true,
+              questions: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50
+      }) : []
+
+      // Get pending grading count (SUBMITTED attempts that aren't graded)
+      const pendingGrading = programIds.length > 0 ? await prisma.examAttempt.count({
+        where: {
+          status: 'SUBMITTED',
+          exam: { module: { programId: { in: programIds } } }
+        }
+      }) : 0
+
+      // Get total active students
+      const activeStudents = programIds.length > 0 ? await prisma.user.count({
+        where: { role: 'STUDENT', programId: { in: programIds }, status: 'active' }
+      }) : 0
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          department: department.name,
+          departmentCode: department.code,
+          activities: {
+            totalExams: allExams.length,
+            draftExams: allExams.filter(e => e.status === 'DRAFT').length,
+            activeExams: allExams.filter(e => e.status === 'ACTIVE' || e.status === 'SCHEDULED').length,
+            completedExams: allExams.filter(e => e.status === 'COMPLETED').length,
+            pendingGrading,
+            activeStudents,
+            totalQuestions: allExams.reduce((sum, e) => sum + e._count.questions, 0),
+          },
+          exams: allExams
+        }
+      })
+    }
+
+    return NextResponse.json({ error: 'Invalid type parameter. Use: overview, lecturers, modules, exams, results, activities' }, { status: 400 })
 
   } catch (error) {
     console.error('Department API error:', error)

@@ -1,6 +1,26 @@
+// ============================================================
+// DEPARTMENTS API - /api/admin/departments
+// ============================================================
+// Handles CRUD for departments. Departments are separate from
+// programs — a department (e.g., ICT) can have multiple programs.
+// Each department has exactly ONE HOD (Head of Department).
+// ============================================================
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize, unauthorizedResponse } from '@/lib/middleware'
+
+// Auto-generate a unique code from the department name
+function generateCode(name: string): string {
+  const prefix = name
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 5)
+  const suffix = Math.random().toString(36).substring(2, 5).toUpperCase()
+  return prefix ? `${prefix}${suffix}` : `DEPT${suffix}`
+}
 
 // GET /api/admin/departments - List all departments
 export async function GET(request: NextRequest) {
@@ -8,7 +28,7 @@ export async function GET(request: NextRequest) {
     const user = await authorize(request, ['ADMIN', 'LECTURER'])
     if (!user) return unauthorizedResponse()
 
-    const departments = await prisma.departments.findMany({
+    const departments = await prisma.department.findMany({
       include: {
         hod: {
           select: {
@@ -17,6 +37,31 @@ export async function GET(request: NextRequest) {
             email: true,
             userId: true
           }
+        },
+        subjects: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            code: true
+          },
+          orderBy: { name: 'asc' }
+        },
+        programs: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            modules: {
+              select: {
+                id: true,
+                name: true,
+                code: true
+              },
+              orderBy: { name: 'asc' }
+            }
+          },
+          orderBy: { name: 'asc' }
         },
         _count: {
           select: {
@@ -46,35 +91,38 @@ export async function POST(request: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const body = await request.json()
-    const { name, code, description } = body
+    const { name, description } = body
 
-    if (!name || !code) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'Name and code are required' },
+        { error: 'Department name is required' },
         { status: 400 }
       )
     }
 
     const existing = await prisma.department.findFirst({
-      where: {
-        OR: [
-          { name: { equals: name, mode: 'insensitive' } },
-          { code: { equals: code, mode: 'insensitive' } }
-        ]
-      }
+      where: { name: { equals: name, mode: 'insensitive' } }
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: 'A department with this name or code already exists' },
+        { error: 'A department with this name already exists' },
         { status: 409 }
       )
+    }
+
+    // Auto-generate unique code
+    let code = generateCode(name)
+    let attempts = 0
+    while (await prisma.department.findUnique({ where: { code } })) {
+      code = generateCode(name + attempts)
+      attempts++
     }
 
     const department = await prisma.department.create({
       data: {
         name,
-        code: code.toUpperCase(),
+        code,
         description: description || null
       },
       include: {

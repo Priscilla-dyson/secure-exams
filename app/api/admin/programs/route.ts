@@ -37,6 +37,13 @@ export async function GET(request: NextRequest) {
 
     const programs = await prisma.program.findMany({
       include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         _count: {
           select: {
             students: true,
@@ -62,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const body = await request.json()
-    const { name } = body
+    const { name, departmentId } = body
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -85,18 +92,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // If departmentId provided, verify department exists
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId }
+      })
+      if (!dept) {
+        return NextResponse.json(
+          { error: 'Department not found' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create the program
     const program = await prisma.program.create({
-      data: { name: trimmedName }
+      data: { 
+        name: trimmedName,
+        departmentId: departmentId || null 
+      }
     })
 
     // Auto-generate 4 classes for this program
     await autoGenerateClasses(program.id, trimmedName)
 
-    // Return program with counts
+    // Return program with counts and department
     const programWithCounts = await prisma.program.findUnique({
       where: { id: program.id },
       include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         _count: {
           select: {
             students: true,

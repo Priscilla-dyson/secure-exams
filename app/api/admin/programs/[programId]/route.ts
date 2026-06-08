@@ -16,6 +16,13 @@ export async function GET(
     const program = await prisma.program.findUnique({
       where: { id: programId },
       include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         _count: {
           select: {
             students: true,
@@ -58,7 +65,7 @@ export async function PUT(
 
     const { programId } = await params
     const body = await request.json()
-    const { name } = body
+    const { name, departmentId } = body
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -93,11 +100,34 @@ export async function PUT(
       )
     }
 
-    // Update the program name
+    // If departmentId provided, verify department exists
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId }
+      })
+      if (!dept) {
+        return NextResponse.json(
+          { error: 'Department not found' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update the program
     const program = await prisma.program.update({
       where: { id: programId },
-      data: { name: trimmedName },
+      data: {
+        name: trimmedName,
+        departmentId: departmentId !== undefined ? (departmentId || null) : existing.departmentId
+      },
       include: {
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         _count: {
           select: {
             students: true,

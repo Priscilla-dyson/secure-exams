@@ -3,14 +3,18 @@
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Users, BookOpen, Building2, UserCheck, ShieldCheck } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Loader2, Users, BookOpen, Building2, UserCheck, ShieldCheck, UserPlus, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function DepartmentManagement() {
   const [loading, setLoading] = useState(true)
   const [lecturers, setLecturers] = useState<any[]>([])
   const [modules, setModules] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'lecturers' | 'modules'>('lecturers')
+  const [assigningModuleId, setAssigningModuleId] = useState<string | null>(null)
+  const [selectedLecturerId, setSelectedLecturerId] = useState('')
+  const [isAssigning, setIsAssigning] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -34,6 +38,57 @@ export default function DepartmentManagement() {
     }
   }
 
+  const handleAssignLecturer = async (moduleId: string) => {
+    if (!selectedLecturerId) {
+      toast.error('Please select a lecturer')
+      return
+    }
+    setIsAssigning(true)
+    try {
+      const res = await fetch('/api/lecturer/department/assign-lecturer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moduleId, lecturerId: selectedLecturerId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Lecturer assigned successfully')
+        setAssigningModuleId(null)
+        setSelectedLecturerId('')
+        fetchData()
+      } else {
+        toast.error(data.error || 'Failed to assign lecturer')
+      }
+    } catch (err) {
+      toast.error('Failed to assign lecturer')
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
+  const handleRemoveLecturer = async (moduleId: string) => {
+    if (!confirm('Remove lecturer from this module?')) return
+    setIsAssigning(true)
+    try {
+      const res = await fetch('/api/lecturer/department/assign-lecturer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moduleId, lecturerId: null })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Lecturer removed')
+        fetchData()
+      } else {
+        toast.error(data.error || 'Failed to remove lecturer')
+      }
+    } catch (err) {
+      toast.error('Failed to remove lecturer')
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -46,7 +101,7 @@ export default function DepartmentManagement() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Department Management</h1>
-        <p className="text-sm text-muted-foreground mt-1">View lecturers, modules, and classes in your department.</p>
+        <p className="text-sm text-muted-foreground mt-1">View lecturers, modules, and assign modules to lecturers in your department.</p>
       </div>
 
       {/* Tabs */}
@@ -138,12 +193,13 @@ export default function DepartmentManagement() {
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Class</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Lecturer</th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">Exams</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {modules.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No modules found.</td>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No modules found.</td>
                   </tr>
                 ) : (
                   modules.map((mod) => (
@@ -151,8 +207,66 @@ export default function DepartmentManagement() {
                       <td className="px-4 py-4 text-sm font-mono text-foreground">{mod.code}</td>
                       <td className="px-4 py-4 text-sm text-foreground">{mod.name}</td>
                       <td className="px-4 py-4 text-sm text-foreground">{mod.class?.name || '-'}</td>
-                      <td className="px-4 py-4 text-sm text-foreground">{mod.lecturer?.name || 'Unassigned'}</td>
+                      <td className="px-4 py-4 text-sm text-foreground">
+                        {assigningModuleId === mod.id ? (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={selectedLecturerId}
+                              onChange={(e) => setSelectedLecturerId(e.target.value)}
+                              className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
+                              aria-label="Select lecturer to assign"
+                            >
+                              <option value="">Select lecturer...</option>
+                              {lecturers.map((lec) => (
+                                <option key={lec.id} value={lec.id}>{lec.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleAssignLecturer(mod.id)}
+                              disabled={isAssigning || !selectedLecturerId}
+                              className="p-1 text-primary hover:text-primary/80 disabled:text-muted-foreground"
+                              title="Assign"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => { setAssigningModuleId(null); setSelectedLecturerId('') }}
+                              className="p-1 text-muted-foreground hover:text-foreground"
+                              title="Cancel"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            {mod.lecturer?.name || <span className="text-muted-foreground italic">Unassigned</span>}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-4 text-sm text-center text-foreground">{mod._count?.exams || 0}</td>
+                      <td className="px-4 py-4 text-right">
+                        {assigningModuleId !== mod.id && (
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => { setAssigningModuleId(mod.id); setSelectedLecturerId(mod.lecturer?.id || '') }}
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded transition"
+                              title="Assign lecturer"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </button>
+                            {mod.lecturer && (
+                              <button
+                                onClick={() => handleRemoveLecturer(mod.id)}
+                                disabled={isAssigning}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition"
+                                title="Remove lecturer"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

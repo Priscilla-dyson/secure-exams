@@ -8,6 +8,8 @@ import { Loader2, ShieldAlert, AlertTriangle, Monitor, Eye, Users, TrendingUp } 
 export default function DepartmentIntegrity() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any>(null)
+  const [showAllViolators, setShowAllViolators] = useState(false)
+  const [showAllViolations, setShowAllViolations] = useState(false)
 
   useEffect(() => {
     fetchIntegrity()
@@ -136,7 +138,17 @@ export default function DepartmentIntegrity() {
       {/* Student Integrity Scores */}
       {topViolators && topViolators.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3">Student Integrity Scores (Lowest First)</h3>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Student Integrity Scores (Lowest First)</h3>
+            {topViolators.length > 20 && (
+              <button
+                onClick={() => setShowAllViolators(!showAllViolators)}
+                className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                {showAllViolators ? 'Show Less' : `View All (${topViolators.length})`}
+              </button>
+            )}
+          </div>
           <div className="rounded-md border border-border bg-background">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -151,7 +163,7 @@ export default function DepartmentIntegrity() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {topViolators.slice(0, 20).map((student: any, idx: number) => (
+                  {(showAllViolators ? topViolators : topViolators.slice(0, 20)).map((student: any, idx: number) => (
                     <tr key={student.userId} className="hover:bg-accent/50">
                       <td className="px-4 py-4">
                         <p className="text-sm font-medium text-foreground">{student.name}</p>
@@ -186,7 +198,17 @@ export default function DepartmentIntegrity() {
       {/* Detailed Violations Report */}
       {violationsList && violationsList.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3">Recent Violations Report</h3>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Recent Violations Report</h3>
+            {violationsList.length > 20 && (
+              <button
+                onClick={() => setShowAllViolations(!showAllViolations)}
+                className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                {showAllViolations ? 'Show Less' : `View All (${violationsList.length})`}
+              </button>
+            )}
+          </div>
           <div className="rounded-md border border-border bg-background">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -202,7 +224,7 @@ export default function DepartmentIntegrity() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {violationsList.map((v: any, idx: number) => (
+                  {(showAllViolations ? violationsList : violationsList.slice(0, 20)).map((v: any, idx: number) => (
                     <tr key={idx} className="hover:bg-accent/50">
                       <td className="px-4 py-4">
                         <p className="text-sm text-foreground">{v.studentName}</p>

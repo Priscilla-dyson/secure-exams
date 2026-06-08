@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -52,6 +53,11 @@ interface Class {
   year: number
 }
 
+interface Department {
+  id: string
+  name: string
+}
+
 export default function UserManagement() {
   const [activeRole, setActiveRole] = useState<UserRole>('STUDENT')
   const [searchTerm, setSearchTerm] = useState('')
@@ -60,6 +66,7 @@ export default function UserManagement() {
   const [showModal, setShowModal] = useState<'create' | 'edit' | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [classes, setClasses] = useState<Class[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
 
   // View modules modal
   const [viewingLecturer, setViewingLecturer] = useState<User | null>(null)
@@ -78,8 +85,7 @@ export default function UserManagement() {
     email: '',
     role: 'STUDENT' as UserRole,
     classId: '',
-    department: '',
-    isHod: false
+    departmentId: ''
   })
 
   // Fetch users
@@ -105,9 +111,20 @@ export default function UserManagement() {
     }
   }
 
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('/api/admin/departments')
+      const data = await res.json()
+      if (data.success) setDepartments(data.departments)
+    } catch (err) {
+      console.error('Error fetching departments:', err)
+    }
+  }
+
   useEffect(() => {
     fetchUsers()
     fetchClasses()
+    fetchDepartments()
   }, [])
 
   // Filter users by role and search
@@ -129,7 +146,7 @@ export default function UserManagement() {
   // Create user
   const handleCreate = async () => {
     if (!form.userId || !form.name || !form.email) {
-      alert('User ID, name, and email are required')
+      toast.error('User ID, name, and email are required')
       return
     }
     try {
@@ -142,13 +159,13 @@ export default function UserManagement() {
       if (data.success) {
         fetchUsers()
         setShowModal(null)
-        setForm({ userId: '', name: '', email: '', role: 'STUDENT', classId: '', department: '', isHod: false })
+        setForm({ userId: '', name: '', email: '', role: 'STUDENT', classId: '', departmentId: '' })
       } else {
-        alert(data.error || 'Failed to create user')
+        toast.error(data.error || 'Failed to create user')
       }
     } catch (err) {
       console.error('Create error:', err)
-      alert('Failed to create user')
+      toast.error('Failed to create user')
     }
   }
 
@@ -161,8 +178,7 @@ export default function UserManagement() {
       email: user.email || '',
       role: user.role,
       classId: user.class?.id || '',
-      department: (user as any).department || '',
-      isHod: (user as any).isHod || false
+      departmentId: (user as any).departmentId || ''
     })
     setShowModal('edit')
   }
@@ -180,8 +196,7 @@ export default function UserManagement() {
           email: form.email,
           role: form.role,
           classId: form.classId,
-          department: form.department,
-          isHod: form.isHod
+          departmentId: form.departmentId
         })
       })
       const data = await res.json()
@@ -190,11 +205,11 @@ export default function UserManagement() {
         setShowModal(null)
         setEditingUser(null)
       } else {
-        alert(data.error || 'Failed to update user')
+        toast.error(data.error || 'Failed to update user')
       }
     } catch (err) {
       console.error('Update error:', err)
-      alert('Failed to update user')
+      toast.error('Failed to update user')
     }
   }
 
@@ -207,11 +222,11 @@ export default function UserManagement() {
       if (data.success) {
         fetchUsers()
       } else {
-        alert(data.error || 'Failed to delete user')
+        toast.error(data.error || 'Failed to delete user')
       }
     } catch (err) {
       console.error('Delete error:', err)
-      alert('Failed to delete user')
+      toast.error('Failed to delete user')
     }
   }
 
@@ -227,7 +242,7 @@ export default function UserManagement() {
 
   const handleImport = async () => {
     if (!importFile) {
-      alert('Please select a CSV file')
+      toast.error('Please select a CSV file')
       return
     }
     setImporting(true)
@@ -248,11 +263,11 @@ export default function UserManagement() {
         })
         fetchUsers()
       } else {
-        alert(data.error || 'Import failed')
+        toast.error(data.error || 'Import failed')
       }
     } catch (err) {
       console.error('Import error:', err)
-      alert('Import failed')
+      toast.error('Import failed')
     } finally {
       setImporting(false)
     }
@@ -277,13 +292,13 @@ export default function UserManagement() {
       })
       const data = await res.json()
       if (data.success) {
-        alert('Password reset successfully')
+        toast.success('Password reset successfully')
       } else {
-        alert(data.error || 'Failed to reset password')
+        toast.error(data.error || 'Failed to reset password')
       }
     } catch (err) {
       console.error('Reset password error:', err)
-      alert('Failed to reset password')
+      toast.error('Failed to reset password')
     }
   }
 
@@ -313,32 +328,8 @@ export default function UserManagement() {
           <Upload className="w-4 h-4 mr-2" />
           Import CSV
         </Button>
-        <div className="relative group">
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block min-w-[180px]">
-            <div className="rounded-md border border-border bg-background shadow-lg py-1">
-              <button
-                onClick={() => exportUsers('students')}
-                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent flex items-center gap-2"
-              >
-                <Users className="h-4 w-4" />
-                Export Students
-              </button>
-              <button
-                onClick={() => exportUsers('lecturers')}
-                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent flex items-center gap-2"
-              >
-                <UserCheck className="h-4 w-4" />
-                Export Lecturers
-              </button>
-            </div>
-          </div>
-        </div>
         <Button onClick={() => {
-          setForm({ userId: '', name: '', email: '', role: activeRole, classId: '', department: '', isHod: false })
+          setForm({ userId: '', name: '', email: '', role: activeRole, classId: '', departmentId: '' })
           setEditingUser(null)
           setShowModal('create')
         }}>
@@ -501,7 +492,12 @@ export default function UserManagement() {
                 <BookOpen className="h-5 w-5 text-primary" />
                 {viewingLecturer.name}'s Modules
               </h3>
-              <button onClick={() => { setViewingLecturer(null); setViewingModules([]) }}>
+              <button
+                type="button"
+                onClick={() => { setViewingLecturer(null); setViewingModules([]) }}
+                aria-label="Close lecturer modules dialog"
+                title="Close"
+              >
                 <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
@@ -549,7 +545,12 @@ export default function UserManagement() {
           <div className="w-full max-w-lg rounded-md border border-border bg-background p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">Import Users from CSV</h3>
-              <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}>
+              <button
+                type="button"
+                onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}
+                aria-label="Close import users dialog"
+                title="Close"
+              >
                 <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
@@ -610,8 +611,9 @@ export default function UserManagement() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Import for</label>
+                  <label htmlFor="importRoleSelect" className="text-sm font-medium text-foreground mb-1.5 block">Import for</label>
                   <select
+                    id="importRoleSelect"
                     value={importRole}
                     onChange={(e) => { setImportRole(e.target.value as UserRole); setImportFile(null); setImportResult(null) }}
                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -636,9 +638,6 @@ export default function UserManagement() {
                   <Button variant="outline" onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(null) }}>
                     Cancel
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => downloadTemplate(importRole === 'STUDENT' ? 'student' : 'lecturer')}>
-                    <Download className="h-4 w-4 mr-1" /> Download Template
-                  </Button>
                   <Button onClick={handleImport} disabled={!importFile || importing}>
                     {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
                     Import
@@ -658,7 +657,12 @@ export default function UserManagement() {
               <h3 className="text-lg font-semibold text-foreground">
                 {showModal === 'create' ? 'Add New User' : 'Edit User'}
               </h3>
-              <button onClick={() => { setShowModal(null); setEditingUser(null) }}>
+              <button
+                type="button"
+                onClick={() => { setShowModal(null); setEditingUser(null) }}
+                aria-label="Close user form dialog"
+                title="Close"
+              >
                 <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
@@ -693,8 +697,9 @@ export default function UserManagement() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Role</label>
+                <label htmlFor="userRoleSelect" className="text-sm font-medium text-foreground">Role</label>
                 <select
+                  id="userRoleSelect"
                   className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
@@ -706,8 +711,9 @@ export default function UserManagement() {
               </div>
               {form.role === 'STUDENT' && (
                 <div>
-                  <label className="text-sm font-medium text-foreground">Class</label>
+                  <label htmlFor="userClassSelect" className="text-sm font-medium text-foreground">Class</label>
                   <select
+                    id="userClassSelect"
                     className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                     value={form.classId}
                     onChange={(e) => setForm({ ...form, classId: e.target.value })}
@@ -720,32 +726,23 @@ export default function UserManagement() {
                 </div>
               )}
               {form.role === 'LECTURER' && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Department</label>
-                    <Input
-                      className="mt-1"
-                      placeholder="e.g. ICT, Nursing, Business"
-                      value={form.department}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Used for HOD assignments. Enter the department name this lecturer belongs to.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="isHod"
-                      checked={form.isHod}
-                      onChange={(e) => setForm({ ...form, isHod: e.target.checked })}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                    <label htmlFor="isHod" className="text-sm font-medium text-foreground">
-                      Head of Department (HOD)
-                    </label>
-                  </div>
-                </>
+                <div>
+                  <label htmlFor="lecturerDepartmentSelect" className="text-sm font-medium text-foreground">Department</label>
+                  <select
+                    id="lecturerDepartmentSelect"
+                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    value={form.departmentId}
+                    onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+                  >
+                    <option value="">Select department</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Assign this lecturer to a department. HOD assignment is done separately via Departments.
+                  </p>
+                </div>
               )}
               {showModal === 'create' && (
                 <p className="text-xs text-muted-foreground">

@@ -90,12 +90,12 @@ export default function LoginPage() {
             priority
           />
           
-          {/* Gradient Overlay with Blur */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-primary-container/85 backdrop-blur-sm" />
+          {/* Gradient Overlay with subtle blue tint — image visible through semi-transparent overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-primary/40 to-primary-container/35 backdrop-blur-[2px]" />
           
           {/* Decorative Elements */}
-          <div className="absolute top-20 right-20 w-64 h-64 rounded-full bg-primary-inverse/10 blur-3xl" />
-          <div className="absolute bottom-20 left-20 w-80 h-80 rounded-full bg-primary-onContainer/10 blur-3xl" />
+          <div className="absolute top-20 right-20 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute bottom-20 left-20 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
           
           {/* Content */}
           <div className="relative z-10 mx-auto w-full max-w-xl px-10 py-16">
@@ -107,7 +107,7 @@ export default function LoginPage() {
               </h1>
               
               <p className="text-lg text-white/80 leading-relaxed mb-6">
-                Secure Web-Based Examination and Automated Results System designed for high-stakes academic environments with clarity, structure, and calm.
+                Secure Web-Based Examination and Automated Results System 
               </p>
               
               <div className="h-0.5 w-24 bg-primary-inverse/50 mb-6" />
@@ -228,19 +228,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            {/* Footer */}
-            <div className="mt-10 pt-6 border-t border-border text-center">
-              <div className="mt-4">
-                <Link 
-                  href="/contact-us" 
-                  className="text-body-sm font-semibold text-primary hover:text-primary-container transition-colors inline-flex items-center gap-1"
-                >
-                  Contact Support
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
       </main>

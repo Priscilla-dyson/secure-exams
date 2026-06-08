@@ -73,9 +73,9 @@ const adminNavItems = [
 ]
 
 const hodNavItems = [
-  { href: '/lecturer/dashboard?hod=true', label: 'Department Overview', icon: Building2 },
-  { href: '/lecturer/department-management', label: 'Department Lecturers', icon: Users },
-  { href: '/lecturer/department-exams', label: 'Department Exams', icon: ClipboardList },
+  { href: '/lecturer/dashboard?hod=true', label: 'Dashboard Overview', icon: LayoutDashboard },
+  { href: '/lecturer/department-management', label: 'Lecturers & Modules', icon: Users },
+  { href: '/lecturer/department-exams', label: 'All Department Exams', icon: ClipboardList },
   { href: '/lecturer/department-results', label: 'Department Results', icon: BarChart3 },
   { href: '/lecturer/department-integrity', label: 'Exam Integrity', icon: ShieldAlert },
 ]
@@ -93,21 +93,17 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
       if (storedUser) {
         const parsed = JSON.parse(storedUser)
         setUser(parsed)
-        // Check if HOD from localStorage, but let the server-side prop override
         const localIsHod = parsed.role === 'LECTURER' && parsed.isHod === true
         setIsHodUser(localIsHod)
       }
     }
   }, [])
 
-  // Use server-side prop as primary source (passed from JWT), fall back to localStorage
   const effectiveIsHod = (isHod && userRole === 'lecturer') || isHodUser || false
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST'
-      })
+      await fetch('/api/auth/logout', { method: 'POST' })
     } catch (error) {
       console.error('Logout error:', error)
     }
@@ -149,7 +145,10 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
         <div className="flex h-16 items-center justify-between px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Open menu"
+              title="Open menu"
               className="lg:hidden p-2 rounded-md text-onSurface-variant hover:bg-surface-container-high transition-colors"
             >
               <Menu className="w-5 h-5" />
@@ -180,13 +179,14 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
         </div>
       </nav>
 
-      <div className="flex">
-        {/* Sidebar */}
+      <div className="flex relative">
+        {/* Sidebar - fixed on desktop so it doesn't scroll with page */}
         <aside className={cn(
-          'fixed inset-y-0 left-0 z-40 w-80 transform border-r border-border bg-surface-container-lowest transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed inset-y-0 left-0 z-40 w-80 transform border-r border-border bg-surface-container-lowest transition-transform duration-300 ease-in-out',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'lg:translate-x-0'
         )}>
-          <div className="flex h-full flex-col">
+          <div className="flex h-full flex-col pt-16"> {/* pt-16 to offset topbar height */}
             {/* Sidebar Header - Mobile */}
             <div className="flex items-center justify-between p-6 border-b border-border lg:hidden">
               <div className="flex items-center gap-2">
@@ -195,15 +195,18 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
                 </div>
                 <span className="text-lg font-bold text-primary">ExamSecure</span>
               </div>
-              <button 
-                onClick={() => setSidebarOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
                 className="p-2 rounded-md text-onSurface-variant hover:bg-surface-container-high transition-colors"
+                aria-label="Close menu"
+                title="Close menu"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            {/* Navigation */}
+            {/* Navigation - scrollable list only, sidebar stays fixed */}
             <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
               {navItems.map((item) => (
                 <NavItem key={item.href} href={item.href} icon={item.icon} label={item.label} />
@@ -225,6 +228,7 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
             {/* Logout Button */}
             <div className="p-4 border-t border-border bg-surface-container-lowest">
               <button
+                type="button"
                 onClick={handleLogout}
                 className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-container-lowest px-4 py-3 text-sm font-semibold text-onSurface-variant transition-all hover:bg-error/10 hover:text-error hover:border-error/30"
               >
@@ -243,9 +247,8 @@ export function SidebarLayout({ children, userRole, isHod }: SidebarLayoutProps)
           />
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          {/* Page Content - reduced padding for compactness */}
+        {/* Main Content - offset by sidebar width on desktop so sidebar stays fixed */}
+        <main className="flex-1 min-h-screen lg:ml-80 overflow-y-auto">
           <div className="p-4 lg:p-6">
             {children}
           </div>

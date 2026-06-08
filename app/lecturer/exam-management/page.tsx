@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -44,7 +45,6 @@ import {
   Sigma,
   Pencil,
   Eraser,
-  Image,
   Undo2,
   Redo2,
   GripVertical,
@@ -82,13 +82,16 @@ interface Exam {
 interface SubQuestion {
   id: string
   label: string
-  category: 'MATH' | 'SHORT_ANSWER' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE'
+  category: 'MATH' | 'SHORT_ANSWER' | 'MULTIPLE_CHOICE'
   text: string
   marks: number
   mathAnswer?: string
+  mathInput?: string
   correctAnswer?: string
   tolerance?: number
   options?: { text: string; isCorrect: boolean }[]
+  useMathRendering?: boolean
+  contentFormat?: string
 }
 
 interface Question {
@@ -100,8 +103,12 @@ interface Question {
   options?: { text: string; isCorrect: boolean }[]
   correctAnswer?: string
   mathAnswer?: string
+  mathInput?: string
   tolerance?: number
-  // Structured sub-questions (1a, 1b, 1c)
+  useMathRendering?: boolean
+  contentFormat?: string
+  requiresManualMarking?: boolean
+  // Sub-questions (1a, 1b, 1c) - available for ALL question types
   subQuestions?: SubQuestion[]
 }
 
@@ -229,25 +236,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (dataUrl:
     onChange(canvas.toDataURL())
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const img = document.createElement('img')
-      img.onload = () => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        saveState()
-        const ctx = canvas.getContext('2d')
-        if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        onChange(canvas.toDataURL())
-      }
-      img.src = ev.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-t-lg border border-gray-200">
@@ -298,10 +286,6 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (dataUrl:
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <label className="p-1.5 rounded hover:bg-gray-200 cursor-pointer" title="Upload image">
-            <Image className="w-4 h-4" />
-            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-          </label>
           <button type="button" onClick={handleClear} className="p-1.5 rounded hover:bg-gray-200 text-red-500" title="Clear canvas">
             <Trash2 className="w-4 h-4" />
           </button>
@@ -311,8 +295,7 @@ function DrawingCanvas({ value, onChange }: { value: string; onChange: (dataUrl:
         ref={canvasRef}
         width={500}
         height={300}
-        className="border border-gray-200 rounded-b-lg cursor-crosshair w-full"
-        style={{ touchAction: 'none' }}
+        className="border border-gray-200 rounded-b-lg cursor-crosshair w-full touch-none"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
@@ -353,10 +336,9 @@ function SubQuestionEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MATH">Math</SelectItem>
-              <SelectItem value="SHORT_ANSWER">Short Answer</SelectItem>
               <SelectItem value="MULTIPLE_CHOICE">Multiple Choice</SelectItem>
-              <SelectItem value="TRUE_FALSE">True/False</SelectItem>
+              <SelectItem value="SHORT_ANSWER">Short Answer</SelectItem>
+              <SelectItem value="MATH">Math</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -397,69 +379,29 @@ function SubQuestionEditor({
       {/* Answer input based on category */}
       {subQuestion.category === 'MATH' && (
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Expected Answer (LaTeX):</Label>
-          <MathInput
-            value={subQuestion.mathAnswer || ''}
-            onChange={v => onChange({ ...subQuestion, mathAnswer: v })}
-            placeholder="e.g., \\frac{1}{2}"
-            label=""
-            showSolve={false}
+          <Label className="text-xs text-muted-foreground">WolframAlpha-Style Expression (optional):</Label>
+          <Input
+            value={subQuestion.mathInput || ''}
+            onChange={e => onChange({ ...subQuestion, mathInput: e.target.value })}
+            placeholder="e.g., solve x^2+1=0, integrate x^2 dx"
+            className="h-8 text-sm font-mono"
           />
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Tolerance:</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.001}
-              value={subQuestion.tolerance ?? 0.01}
-              onChange={e => onChange({ ...subQuestion, tolerance: parseFloat(e.target.value) || 0.01 })}
-              className="h-7 w-20 text-xs"
-            />
+          <div className="p-1.5 bg-blue-50 rounded border border-blue-100">
+            <p className="text-[10px] text-blue-700">
+              Math sub-questions are manually marked. No expected answer stored.
+            </p>
           </div>
         </div>
       )}
 
       {subQuestion.category === 'SHORT_ANSWER' && (
-        <div>
-          <Label className="text-xs text-muted-foreground">Correct Answer:</Label>
-          <Input
-            value={subQuestion.correctAnswer || ''}
-            onChange={e => onChange({ ...subQuestion, correctAnswer: e.target.value })}
-            placeholder="Expected answer text"
-            className="h-8 text-sm mt-1"
-          />
+        <div className="p-1.5 bg-blue-50 rounded border border-blue-100">
+          <p className="text-[10px] text-blue-700">
+            Short answer sub-questions are manually marked. No expected answer stored.
+          </p>
         </div>
       )}
 
-      {subQuestion.category === 'TRUE_FALSE' && (
-        <div className="flex items-center gap-3 mt-1">
-          <Label className="text-xs text-muted-foreground">Correct Answer:</Label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onChange({ ...subQuestion, correctAnswer: 'true' })}
-              className={`px-3 py-1 text-xs rounded border ${
-                subQuestion.correctAnswer === 'true'
-                  ? 'bg-green-100 border-green-400 text-green-700'
-                  : 'bg-white border-gray-200 text-gray-500'
-              }`}
-            >
-              True
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange({ ...subQuestion, correctAnswer: 'false' })}
-              className={`px-3 py-1 text-xs rounded border ${
-                subQuestion.correctAnswer === 'false'
-                  ? 'bg-green-100 border-green-400 text-green-700'
-                  : 'bg-white border-gray-200 text-gray-500'
-              }`}
-            >
-              False
-            </button>
-          </div>
-        </div>
-      )}
 
       {subQuestion.category === 'MULTIPLE_CHOICE' && (
         <div className="space-y-1.5">
@@ -470,6 +412,8 @@ function SubQuestionEditor({
                 type="radio"
                 name={`mcq-sub-${index}`}
                 checked={opt.isCorrect}
+                aria-label={`Mark option ${String.fromCharCode(65 + oi)} as correct`}
+                title={`Mark option ${String.fromCharCode(65 + oi)} as correct`}
                 onChange={() =>
                   onChange({
                     ...subQuestion,
@@ -490,6 +434,7 @@ function SubQuestionEditor({
               />
               {(subQuestion.options?.length || 0) > 2 && (
                 <button
+                  type="button"
                   onClick={() =>
                     onChange({
                       ...subQuestion,
@@ -497,6 +442,8 @@ function SubQuestionEditor({
                     })
                   }
                   className="text-red-500 text-xs"
+                  aria-label={`Remove option ${String.fromCharCode(65 + oi)}`}
+                  title="Remove option"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -531,6 +478,7 @@ export default function ExamManagementPage() {
   const [form, setForm] = useState({ ...emptyForm })
   const [questions, setQuestions] = useState<Question[]>([])
   const [showAddQ, setShowAddQ] = useState(false)
+  const [qTypeStep, setQTypeStep] = useState<'select' | 'form'>('select')
   const [newQ, setNewQ] = useState<Partial<Question>>({
     type: 'MULTIPLE_CHOICE',
     text: '',
@@ -629,8 +577,8 @@ export default function ExamManagementPage() {
   }
 
   const handleSubmit = async (publish: boolean) => {
-    if (!form.moduleId) { alert('Select a module'); return }
-    if (!form.duration || parseInt(form.duration) < 1) { alert('Duration must be at least 1 minute'); return }
+    if (!form.moduleId) { toast.error('Select a module'); return }
+    if (!form.duration || parseInt(form.duration) < 1) { toast.error('Duration must be at least 1 minute'); return }
     setSubmitting(true)
     try {
       const mod = modules.find(m => m.id === form.moduleId)
@@ -648,34 +596,38 @@ export default function ExamManagementPage() {
         published: publish, status: publish ? 'SCHEDULED' : 'DRAFT',
         questions: questions.map((q, i) => {
           const base: any = {
+            type: q.type,
             category: q.type === 'STRUCTURED' ? 'STRUCTURED' :
                       q.type === 'MATH' ? 'MATH' :
                       q.type === 'MULTIPLE_CHOICE' ? 'MULTIPLE_CHOICE' :
                       q.type === 'SHORT_ANSWER' ? 'SHORT_ANSWER' :
-                      q.type === 'TRUE_FALSE' ? 'TRUE_FALSE' :
                       q.type === 'ESSAY' ? 'ESSAY' :
                       'SHORT_ANSWER',
             text: q.text,
             marks: q.marks,
             order: i + 1,
-            options: (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') && q.options ? q.options : undefined,
-            correctAnswer: q.type === 'TRUE_FALSE' ? q.correctAnswer :
-                           q.type === 'SHORT_ANSWER' ? q.correctAnswer :
-                           q.type === 'ESSAY' ? q.correctAnswer : undefined,
+            options: q.type === 'MULTIPLE_CHOICE' && q.options ? q.options : undefined,
             mathAnswer: q.type === 'MATH' ? q.mathAnswer : undefined,
+            mathInput: q.mathInput,
             tolerance: q.type === 'MATH' ? q.tolerance : undefined,
+            contentFormat: q.contentFormat || 'PLAIN',
+            useMathRendering: q.useMathRendering || false,
+            requiresManualMarking: q.type === 'ESSAY' || q.type === 'SHORT_ANSWER' || q.type === 'DRAWING' || q.type === 'MATH',
           }
 
-          // For structured questions, include sub-questions
-          if (q.type === 'STRUCTURED' && q.subQuestions && q.subQuestions.length > 0) {
+          // Include sub-questions for ANY question type that has them
+          if (q.subQuestions && q.subQuestions.length > 0) {
             base.subQuestions = q.subQuestions.map((sq, sIdx) => ({
               category: sq.category,
               text: sq.text,
               marks: sq.marks,
               order: sIdx + 1,
               mathAnswer: sq.category === 'MATH' ? sq.mathAnswer : undefined,
+              mathInput: sq.category === 'MATH' ? sq.mathInput : undefined,
               correctAnswer: sq.category !== 'MATH' ? sq.correctAnswer : undefined,
               tolerance: sq.category === 'MATH' ? sq.tolerance : undefined,
+              contentFormat: sq.contentFormat || (sq.category === 'MATH' ? 'WOLFRAM' : 'PLAIN'),
+              useMathRendering: sq.useMathRendering || false,
               options: sq.category === 'MULTIPLE_CHOICE' ? sq.options : undefined,
             }))
           }
@@ -688,8 +640,8 @@ export default function ExamManagementPage() {
         : await fetch('/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (data.success) { await fetchExams(); closeDialog() }
-      else alert(data.error || 'Failed to save')
-    } catch { alert('Failed to save exam') }
+      else toast.error(data.error || 'Failed to save')
+    } catch { toast.error('Failed to save exam') }
     finally { setSubmitting(false) }
   }
 
@@ -698,7 +650,7 @@ export default function ExamManagementPage() {
     try {
       const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' })
       if (res.ok) setExams(exams.filter(e => e.id !== id))
-      else { const d = await res.json(); alert(d.error || 'Failed to delete') }
+      else { const d = await res.json(); toast.error(d.error || 'Failed to delete') }
     } catch { console.error }
   }
 
@@ -710,7 +662,7 @@ export default function ExamManagementPage() {
       })
       const d = await res.json()
       if (d.success) await fetchExams()
-      else alert(d.error || 'Failed to duplicate')
+      else toast.error(d.error || 'Failed to duplicate')
     } catch { console.error }
   }
 
@@ -721,7 +673,7 @@ export default function ExamManagementPage() {
     const sq: SubQuestion = {
       id: `sq_${Date.now()}`,
       label: String((newQ.subQuestions?.length || 0) + 1),
-      category: 'MATH',
+      category: 'SHORT_ANSWER',
       text: '',
       marks: 2,
       tolerance: 0.01,
@@ -745,75 +697,65 @@ export default function ExamManagementPage() {
   }
 
   const addQuestion = () => {
-    if (newQ.type === 'STRUCTURED') {
-      // Validate structured has sub-questions
-      if (!newQ.subQuestions || newQ.subQuestions.length === 0) {
-        alert('Add at least one sub-question (1a, 1b, etc.) for structured questions')
-        return
-      }
-      // Validate each sub-question has text
-      for (let i = 0; i < newQ.subQuestions.length; i++) {
-        if (!newQ.subQuestions[i].text?.trim()) {
-          alert(`Sub-question ${i + 1} needs question text`)
-          return
+    if (!newQ.text?.trim() && newQ.type !== 'STRUCTURED' && newQ.type !== 'DRAWING') {
+      toast.error('Question text is required'); return
+    }
+    if (!newQ.marks || newQ.marks < 1) {
+      if (newQ.type !== 'STRUCTURED') { toast.error('Marks must be at least 1'); return }
+    }
+    if (newQ.type === 'MULTIPLE_CHOICE' || newQ.type === 'STRUCTURED') {
+      const hasSubs = newQ.subQuestions && newQ.subQuestions.length > 0
+      if (!hasSubs) {
+        // Check MCQ options directly
+        if (newQ.type === 'MULTIPLE_CHOICE') {
+          const filled = newQ.options?.filter(o => o.text.trim()) || []
+          if (filled.length < 2) { toast.error('MCQ needs at least 2 options'); return }
+          if (!newQ.options?.some(o => o.isCorrect)) { toast.error('Mark the correct answer'); return }
+        }
+      } else if (hasSubs) {
+        // Has sub-questions - validate those
+        for (let i = 0; i < (newQ.subQuestions as SubQuestion[]).length; i++) {
+          if (!(newQ.subQuestions as SubQuestion[])[i].text?.trim()) {
+            toast.error(`Sub-question ${i + 1} needs question text`)
+            return
+          }
         }
       }
-      // Calculate total marks from sub-questions
-      const totalSubMarks = newQ.subQuestions.reduce((sum, sq) => sum + sq.marks, 0)
-
-      const question: Question = {
-        id: `q_${Date.now()}`,
-        type: 'STRUCTURED',
-        text: newQ.text?.trim() || 'Answer all parts of the question:',
-        marks: totalSubMarks,
-        order: questions.length + 1,
-        subQuestions: newQ.subQuestions.map(sq => ({ ...sq })),
-      }
-      setQuestions([...questions, question])
-    } else if (newQ.type === 'MATH') {
-      if (!newQ.text?.trim() && !newQ.mathAnswer?.trim()) {
-        alert('Question text or math answer is required')
-        return
-      }
-      if (!newQ.marks || newQ.marks < 1) { alert('Marks must be at least 1'); return }
-
-      const question: Question = {
-        id: `q_${Date.now()}`,
-        type: 'MATH',
-        text: newQ.text?.trim() || '',
-        marks: newQ.marks,
-        order: questions.length + 1,
-        mathAnswer: newQ.mathAnswer,
-        tolerance: newQ.tolerance || 0.01,
-      }
-      setQuestions([...questions, question])
-    } else {
-      if (!newQ.text?.trim()) { alert('Question text is required'); return }
-      if (!newQ.marks || newQ.marks < 1) { alert('Marks must be at least 1'); return }
-      if (newQ.type === 'MULTIPLE_CHOICE') {
-        const filled = newQ.options?.filter(o => o.text.trim()) || []
-        if (filled.length < 2) { alert('MCQ needs at least 2 options'); return }
-        if (!newQ.options?.some(o => o.isCorrect)) { alert('Mark the correct answer'); return }
-      }
-      if (newQ.type === 'DRAWING' && !canvasData) {
-        alert('Please draw something on the canvas')
-        return
-      }
-
-      const question: Question = {
-        id: `q_${Date.now()}`,
-        type: newQ.type as string,
-        text: newQ.text.trim(),
-        marks: newQ.marks,
-        order: questions.length + 1,
-        options: newQ.type === 'MULTIPLE_CHOICE' ? newQ.options?.filter(o => o.text.trim()) : undefined,
-        correctAnswer: (newQ.type === 'SHORT_ANSWER' || newQ.type === 'TRUE_FALSE' || newQ.type === 'ESSAY') ? newQ.correctAnswer : undefined,
-      }
-      if (newQ.type === 'DRAWING') {
-        question.text = newQ.text.trim() || 'Draw your answer on the canvas'
-      }
-      setQuestions([...questions, question])
     }
+    if (newQ.type === 'DRAWING' && !canvasData) {
+      toast.error('Please draw something on the canvas')
+      return
+    }
+
+    // Determine if we have sub-questions
+    const hasSubQuestions = newQ.subQuestions && newQ.subQuestions.length > 0
+
+    // Calculate marks
+    const totalSubMarks = hasSubQuestions
+      ? newQ.subQuestions!.reduce((sum, sq) => sum + sq.marks, 0)
+      : (newQ.marks || 1)
+
+    const question: Question = {
+      id: `q_${Date.now()}`,
+      type: newQ.type as string,
+      text: hasSubQuestions
+        ? (newQ.text?.trim() || `Answer all parts of the question:`)
+        : (newQ.type === 'DRAWING' ? (newQ.text?.trim() || 'Draw your answer on the canvas') : (newQ.text || '').trim()),
+      marks: hasSubQuestions ? totalSubMarks : (newQ.marks || 1),
+      order: questions.length + 1,
+      options: newQ.type === 'MULTIPLE_CHOICE' && !hasSubQuestions
+        ? newQ.options?.filter(o => o.text.trim())
+        : undefined,
+      mathAnswer: newQ.type === 'MATH' ? newQ.mathAnswer : undefined,
+      mathInput: newQ.type === 'MATH' ? newQ.mathInput : undefined,
+      tolerance: newQ.type === 'MATH' ? newQ.tolerance : undefined, 
+      useMathRendering: newQ.type === 'MATH' || newQ.useMathRendering || false,
+      contentFormat: newQ.type === 'MATH' ? 'WOLFRAM' : 'PLAIN',
+      requiresManualMarking: newQ.type === 'ESSAY' || newQ.type === 'SHORT_ANSWER' || newQ.type === 'DRAWING' || newQ.type === 'MATH',
+      // Sub-questions for ANY question type
+      subQuestions: hasSubQuestions ? newQ.subQuestions!.map(sq => ({ ...sq })) : undefined,
+    }
+    setQuestions([...questions, question])
 
     // Reset form
     setNewQ({
@@ -996,12 +938,29 @@ export default function ExamManagementPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm">Start Date & Time</Label>
-                  <Input type="datetime-local" value={form.scheduledDate} onChange={e => setForm({ ...form, scheduledDate: e.target.value })} className="mt-1" />
+                  <Label className="text-sm">Start Date & Time <span className="text-red-500">*</span></Label>
+                  <Input 
+                    type="datetime-local" 
+                    value={form.scheduledDate} 
+                    onChange={e => setForm({ ...form, scheduledDate: e.target.value })} 
+                    className="mt-1" 
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  {form.scheduledDate && new Date(form.scheduledDate) <= new Date() && (
+                    <p className="text-xs text-red-500 mt-1">Start time must be in the future</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm">End Date & Time</Label>
-                  <Input type="datetime-local" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="mt-1" />
+                  <Input 
+                    type="datetime-local" 
+                    value={form.endDate} 
+                    onChange={e => setForm({ ...form, endDate: e.target.value })} 
+                    className="mt-1" 
+                  />
+                  {form.endDate && form.scheduledDate && new Date(form.endDate) <= new Date(form.scheduledDate) && (
+                    <p className="text-xs text-red-500 mt-1">End time must be after start time</p>
+                  )}
                 </div>
               </div>
 
@@ -1028,7 +987,13 @@ export default function ExamManagementPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">{questions.length} questions · {totalMarks} marks</span>
                 <Button size="sm" onClick={() => {
-                  setShowAddQ(!showAddQ)
+                  if (showAddQ) {
+                    setShowAddQ(false)
+                    setQTypeStep('select')
+                  } else {
+                    setShowAddQ(true)
+                    setQTypeStep('select')
+                  }
                   setNewQ({
                     type: 'MULTIPLE_CHOICE',
                     text: '',
@@ -1041,51 +1006,106 @@ export default function ExamManagementPage() {
                 </Button>
               </div>
 
-              {showAddQ && (
+              {showAddQ && qTypeStep === 'select' && (
+                <div className="border-2 border-dashed border-primary/40 rounded-lg p-6 bg-primary/5 space-y-4">
+                  <h4 className="text-sm font-semibold text-center text-gray-700">Select question type:</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewQ({ ...newQ, type: 'MULTIPLE_CHOICE', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }], subQuestions: [] })
+                        setQTypeStep('form')
+                      }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <ListChecks className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Multiple Choice</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewQ({ ...newQ, type: 'SHORT_ANSWER', subQuestions: [] }); setQTypeStep('form') }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <Pencil className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Short Answer</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewQ({ ...newQ, type: 'ESSAY', subQuestions: [] }); setQTypeStep('form') }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <FileText className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Essay</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewQ({ ...newQ, type: 'MATH', subQuestions: [] }); setQTypeStep('form') }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <Sigma className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Math</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewQ({ ...newQ, type: 'STRUCTURED', subQuestions: [] }); setQTypeStep('form') }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <GripVertical className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Structured</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setNewQ({ ...newQ, type: 'DRAWING', subQuestions: [] }); setQTypeStep('form') }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 border-transparent hover:border-primary/40 hover:bg-primary/10 transition-all"
+                    >
+                      <Eraser className="w-6 h-6 text-primary" />
+                      <span className="text-xs font-medium">Drawing</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddQ && qTypeStep === 'form' && (
                 <div className="border-2 border-dashed border-primary/40 rounded-lg p-4 bg-primary/5 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Type</Label>
-                      <Select value={newQ.type} onValueChange={v => {
-                        setNewQ({
-                          ...newQ,
-                          type: v,
-                          options: v === 'MULTIPLE_CHOICE' ? [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] :
-                                  v === 'TRUE_FALSE' ? [{ text: 'True', isCorrect: true }, { text: 'False', isCorrect: false }] :
-                                  undefined,
-                        })
-                        setCanvasData(v === 'DRAWING' ? '' : canvasData)
-                      }}>
-                        <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MULTIPLE_CHOICE">Multiple Choice</SelectItem>
-                          <SelectItem value="TRUE_FALSE">True / False</SelectItem>
-                          <SelectItem value="SHORT_ANSWER">Short Answer</SelectItem>
-                          <SelectItem value="ESSAY">Essay</SelectItem>
-                          <SelectItem value="MATH">Math (LaTeX)</SelectItem>
-                          <SelectItem value="STRUCTURED">Structured (1a, 1b, 1c)</SelectItem>
-                          <SelectItem value="DRAWING">Drawing</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQTypeStep('select')}
+                        className="p-1 hover:bg-gray-100 rounded text-gray-500"
+                        title="Change type"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <Badge variant="outline" className="text-xs font-semibold">
+                        {newQ.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' :
+                         newQ.type === 'SHORT_ANSWER' ? 'Short Answer' :
+                         newQ.type === 'ESSAY' ? 'Essay' :
+                         newQ.type === 'MATH' ? 'Math' :
+                         newQ.type === 'STRUCTURED' ? 'Structured' :
+                         newQ.type === 'DRAWING' ? 'Drawing' : newQ.type}
+                      </Badge>
                     </div>
                     <div>
                       <Label className="text-xs">
                         Marks
-                        {newQ.type === 'STRUCTURED' && (
+                        {newQ.subQuestions && newQ.subQuestions.length > 0 && (
                           <span className="text-muted-foreground font-normal ml-1">(auto-summed)</span>
                         )}
                       </Label>
                       <Input
                         type="number"
                         min="1"
-                        value={newQ.type === 'STRUCTURED' ? (newQ.subQuestions || []).reduce((s, sq) => s + sq.marks, 0) : (newQ.marks || 0)}
+                        value={newQ.subQuestions && newQ.subQuestions.length > 0
+                          ? (newQ.subQuestions as SubQuestion[]).reduce((s, sq) => s + sq.marks, 0)
+                          : (newQ.marks || 0)}
                         onChange={e => {
-                          if (newQ.type !== 'STRUCTURED') {
+                          if (!newQ.subQuestions || (newQ.subQuestions as SubQuestion[]).length === 0) {
                             setNewQ({ ...newQ, marks: parseInt(e.target.value) || 0 })
                           }
                         }}
-                        disabled={newQ.type === 'STRUCTURED'}
-                        className="mt-1 h-9"
+                        disabled={newQ.subQuestions ? (newQ.subQuestions as SubQuestion[]).length > 0 : false}
+                        className="mt-1 h-9 w-20"
                       />
                     </div>
                   </div>
@@ -1136,11 +1156,11 @@ export default function ExamManagementPage() {
                     </div>
                   )}
 
-                  {/* MATH question with MathInput */}
+                  {/* MATH question - Wolfram-style natural math input */}
                   {newQ.type === 'MATH' && (
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-xs">Question Text:</Label>
+                        <Label className="text-xs">Question Text (supports LaTeX with $...$):</Label>
                         <MathInput
                           value={newQ.text || ''}
                           onChange={v => setNewQ({ ...newQ, text: v })}
@@ -1150,68 +1170,15 @@ export default function ExamManagementPage() {
                         />
                       </div>
                       <div className="border-t border-gray-200 pt-3">
-                        <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                          Expected Answer (for auto-marking):
+                        <Label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                          Expression:
                         </Label>
-                        <MathInput
-                          value={newQ.mathAnswer || ''}
-                          onChange={v => setNewQ({ ...newQ, mathAnswer: v })}
-                          placeholder="e.g., \frac{1}{2}"
-                          label="Correct Answer"
-                          showSolve={false}
+                        <Input
+                          value={newQ.mathInput || ''}
+                          onChange={e => setNewQ({ ...newQ, mathInput: e.target.value })}
+                          placeholder="e.g., solve x^2+1=0"
+                          className="h-9 text-sm font-mono"
                         />
-                        <div className="flex items-center gap-2 mt-2">
-                          <Label className="text-xs text-muted-foreground">Tolerance:</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.001}
-                            value={newQ.tolerance ?? 0.01}
-                            onChange={e => setNewQ({ ...newQ, tolerance: parseFloat(e.target.value) || 0.01 })}
-                            className="h-8 w-24 text-xs"
-                          />
-                          <span className="text-[10px] text-muted-foreground">(numerical tolerance for auto-marking)</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TRUE_FALSE question */}
-                  {newQ.type === 'TRUE_FALSE' && (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={newQ.text || ''}
-                        onChange={e => setNewQ({ ...newQ, text: e.target.value })}
-                        placeholder="Enter your true/false question..."
-                        rows={2}
-                        className="mt-1"
-                      />
-                      <div className="flex items-center gap-3">
-                        <Label className="text-xs">Correct Answer:</Label>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setNewQ({ ...newQ, correctAnswer: 'true' })}
-                            className={`px-3 py-1 text-xs rounded border ${
-                              newQ.correctAnswer === 'true'
-                                ? 'bg-green-100 border-green-400 text-green-700'
-                                : 'bg-white border-gray-200 text-gray-500'
-                            }`}
-                          >
-                            True
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setNewQ({ ...newQ, correctAnswer: 'false' })}
-                            className={`px-3 py-1 text-xs rounded border ${
-                              newQ.correctAnswer === 'false'
-                                ? 'bg-green-100 border-green-400 text-green-700'
-                                : 'bg-white border-gray-200 text-gray-500'
-                            }`}
-                          >
-                            False
-                          </button>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -1236,23 +1203,47 @@ export default function ExamManagementPage() {
                   )}
 
                   {/* Other question types */}
-                  {newQ.type !== 'MATH' && newQ.type !== 'STRUCTURED' && newQ.type !== 'TRUE_FALSE' && newQ.type !== 'DRAWING' && (
+                  {newQ.type !== 'MATH' && newQ.type !== 'STRUCTURED' && newQ.type !== 'DRAWING' && (
                     <>
-                      <Textarea value={newQ.text} onChange={e => setNewQ({ ...newQ, text: e.target.value })} placeholder="Enter question..." rows={2} className="mt-1" />
+                      {newQ.type === 'MULTIPLE_CHOICE' ? (
+                        <div>
+                          <Label className="text-xs">Question:</Label>
+                          <Textarea
+                            value={newQ.text || ''}
+                            onChange={e => setNewQ({ ...newQ, text: e.target.value })}
+                            placeholder="Enter your question here..."
+                            rows={2}
+                            className="mt-1"
+                          />
+                        </div>
+                      ) : (
+                        <Textarea value={newQ.text} onChange={e => setNewQ({ ...newQ, text: e.target.value })} placeholder="Enter question..." rows={2} className="mt-1" />
+                      )}
 
                       {newQ.type === 'MULTIPLE_CHOICE' && (
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Options</Label>
+                          <Label className="text-xs">Options:</Label>
                           {newQ.options?.map((opt, i) => (
                             <div key={i} className="flex items-center gap-2">
-                              <input type="radio" name="mcq" checked={opt.isCorrect}
+                              <input
+                                type="radio"
+                                name="mcq"
+                                checked={opt.isCorrect}
+                                aria-label={`Mark option ${String.fromCharCode(65 + i)} as correct`}
+                                title={`Mark option ${String.fromCharCode(65 + i)} as correct`}
                                 onChange={() => setNewQ({ ...newQ, options: newQ.options?.map((o, j) => ({ ...o, isCorrect: j === i })) })}
-                                className="w-4 h-4 accent-primary shrink-0" />
-                              <Input value={opt.text} onChange={e => {
-                                const opts = [...(newQ.options || [])]; opts[i] = { ...opts[i], text: e.target.value }; setNewQ({ ...newQ, options: opts })
-                              }} placeholder={`Option ${String.fromCharCode(65 + i)}`} className="flex-1 h-9" />
+                                className="w-4 h-4 accent-primary shrink-0"
+                              />
+                              <Input
+                                value={opt.text}
+                                onChange={e => {
+                                  const opts = [...(newQ.options || [])]; opts[i] = { ...opts[i], text: e.target.value }; setNewQ({ ...newQ, options: opts })
+                                }}
+                                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                                className="flex-1 h-9"
+                              />
                               {newQ.options && newQ.options.length > 2 && (
-                                <button onClick={() => setNewQ({ ...newQ, options: newQ.options?.filter((_, j) => j !== i) })} className="text-red-500 text-xs">X</button>
+                                <button onClick={() => setNewQ({ ...newQ, options: newQ.options?.filter((_, j) => j !== i) })} className="text-red-500 text-xs shrink-0">X</button>
                               )}
                             </div>
                           ))}
@@ -1261,14 +1252,11 @@ export default function ExamManagementPage() {
                       )}
 
                       {newQ.type === 'SHORT_ANSWER' && (
-                        <div>
-                          <Label className="text-xs">Expected Answer</Label>
-                          <Input
-                            value={newQ.correctAnswer || ''}
-                            onChange={e => setNewQ({ ...newQ, correctAnswer: e.target.value })}
-                            placeholder="Expected answer for semi-automatic marking"
-                            className="h-9"
-                          />
+                        <div className="p-2 bg-blue-50 rounded border border-blue-200">
+                          <p className="text-xs text-blue-700">
+                            <strong>Note:</strong> Short answer questions are manually marked. 
+                            No expected answer is stored.
+                          </p>
                         </div>
                       )}
 
@@ -1286,7 +1274,10 @@ export default function ExamManagementPage() {
                     </>
                   )}
 
-                  <div className="flex justify-end"><Button size="sm" onClick={addQuestion}>Add Question</Button></div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setQTypeStep('select')}>Back</Button>
+                    <Button size="sm" onClick={addQuestion}>Add Question</Button>
+                  </div>
                 </div>
               )}
 
@@ -1305,7 +1296,6 @@ export default function ExamManagementPage() {
                           <Badge variant="secondary" className="text-xs">
                             {q.type === 'MULTIPLE_CHOICE' ? 'MCQ' :
                              q.type === 'SHORT_ANSWER' ? 'Short' :
-                             q.type === 'TRUE_FALSE' ? 'T/F' :
                              q.type === 'ESSAY' ? 'Essay' :
                              q.type === 'MATH' ? 'Math' :
                              q.type === 'STRUCTURED' ? 'Structured' :
